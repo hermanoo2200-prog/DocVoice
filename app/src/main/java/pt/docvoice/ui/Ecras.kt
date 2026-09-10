@@ -6,6 +6,9 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,6 +40,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -228,10 +232,24 @@ fun EcraLeitura(
 ) {
     val listaEstado = rememberLazyListState()
 
-    // O texto segue a voz — mas só quando o parágrafo lido sai do ecrã,
-    // para não lutar contra quem está a percorrer o documento com o dedo.
+    // Quem percorre o documento com o dedo quer olhar para outro sítio sem
+    // que a voz pare nem o texto lhe seja puxado de volta a meio da frase.
+    // Depois de o dedo largar, o texto volta a seguir a voz — mas só passado
+    // este tempo, e sem nunca interromper a leitura.
+    var instanteDoDedo by remember { mutableStateOf(0L) }
+    LaunchedEffect(listaEstado) {
+        // Marca tanto o começo como o fim do deslize: a contagem só arranca
+        // quando o dedo já largou.
+        snapshotFlow { listaEstado.isScrollInProgress }.collect {
+            instanteDoDedo = System.currentTimeMillis()
+        }
+    }
+
+    // O texto segue a voz — só quando o parágrafo lido sai do ecrã, e só se
+    // o leitor não andou agora mesmo a percorrer o documento.
     LaunchedEffect(sessao.indice, sessao.aLer) {
         if (!sessao.aLer) return@LaunchedEffect
+        if (System.currentTimeMillis() - instanteDoDedo < ESPERA_DEPOIS_DO_DEDO) return@LaunchedEffect
         val visiveis = listaEstado.layoutInfo.visibleItemsInfo
         val aVista = visiveis.any { it.index == sessao.indice }
         if (!aVista) listaEstado.animateScrollToItem(sessao.indice)
@@ -332,6 +350,9 @@ private fun MarcaDeFolha(pagina: Int) {
     }
 }
 
+/** Quanto tempo o texto deixa de seguir a voz depois de alguém lhe tocar. */
+private const val ESPERA_DEPOIS_DO_DEDO = 15_000L
+
 @Composable
 private fun BlocoDeTexto(paragrafo: Paragraph, actual: Boolean, aoTocar: () -> Unit) {
     // A marca do parágrafo em leitura é uma barra fina à esquerda —
@@ -340,7 +361,27 @@ private fun BlocoDeTexto(paragrafo: Paragraph, actual: Boolean, aoTocar: () -> U
         Modifier
             .fillMaxWidth()
             .height(IntrinsicSize.Min)
-            .clickable(onClick = aoTocar)
+            // `clickable` dava por toque qualquer dedo que andasse menos do
+            // que o limiar de deslize: bastava começar a percorrer o texto
+            // devagar para a leitura saltar de sítio. Aqui só conta o dedo
+            // que pousa e levanta praticamente sem andar.
+            .pointerInput(aoTocar) {
+                val limite = viewConfiguration.touchSlop / 3f
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false)
+                    var andou = 0f
+                    var roubado = false
+                    while (true) {
+                        val evento = awaitPointerEvent()
+                        evento.changes.forEach { mudanca ->
+                            andou += (mudanca.position - mudanca.previousPosition).getDistance()
+                            if (mudanca.isConsumed) roubado = true
+                        }
+                        if (evento.changes.none { it.pressed }) break
+                    }
+                    if (!roubado && andou <= limite) aoTocar()
+                }
+            }
     ) {
         Box(
             Modifier

@@ -232,6 +232,8 @@ object SessaoDeLeitura {
     }
 
     fun pausar() {
+        geracao++            // o que vier do motor a partir daqui já não conta
+        idEmCurso = null
         tts?.stop()
         largarFoco()
         _estado.value = _estado.value.copy(aLer = false)
@@ -253,9 +255,26 @@ object SessaoDeLeitura {
 
     // --- fala ---------------------------------------------------------------
 
+    /**
+     * Cada fala leva uma marca de geração no seu identificador.
+     *
+     * Sempre que cortamos de propósito — saltar de parágrafo, mudar de voz ou
+     * de velocidade — o `QUEUE_FLUSH` interrompe a fala em curso, e o motor
+     * anuncia essa interrupção. Uns motores chamam-lhe fim, outros chamam-lhe
+     * erro. Sem a marca de geração não há como distinguir esse aviso tardio,
+     * que é de uma fala já abandonada, do aviso da fala que está mesmo a
+     * decorrer: tratá-los por igual fazia a leitura saltar um parágrafo ou
+     * parar de vez.
+     */
+    private var geracao = 0
+    private var idEmCurso: String? = null
+
     private fun falarActual(modo: Int) {
         val paragrafo = _estado.value.paragrafoActual ?: return
-        tts?.speak(paragrafo.texto, modo, null, paragrafo.id)
+        if (modo == TextToSpeech.QUEUE_FLUSH) geracao++
+        val id = "${paragrafo.id}#$geracao"
+        idEmCurso = id
+        tts?.speak(paragrafo.texto, modo, null, id)
     }
 
     private val ouvinte = object : UtteranceProgressListener() {
@@ -264,7 +283,7 @@ object SessaoDeLeitura {
         override fun onDone(utteranceId: String?) {
             val estado = _estado.value
             if (!estado.aLer) return
-            if (utteranceId != estado.paragrafoActual?.id) return // salto pelo meio: ignorar
+            if (utteranceId != idEmCurso) return // fala já abandonada: ignorar
             if (estado.indice + 1 >= estado.total) {
                 largarFoco()
                 _estado.value = estado.copy(aLer = false) // fim do documento
@@ -275,9 +294,19 @@ object SessaoDeLeitura {
         }
 
         @Deprecated("substituído pela variante com código de erro")
-        override fun onError(utteranceId: String?) = pausar()
+        override fun onError(utteranceId: String?) = falhou(utteranceId)
 
-        override fun onError(utteranceId: String?, errorCode: Int) = pausar()
+        override fun onError(utteranceId: String?, errorCode: Int) = falhou(utteranceId)
+
+        /**
+         * Só pára se quem falhou for a fala que está mesmo a decorrer.
+         * Um corte nosso chega a alguns motores como erro — e isso não é
+         * motivo para calar o que o leitor pediu.
+         */
+        private fun falhou(utteranceId: String?) {
+            if (utteranceId != idEmCurso) return
+            pausar()
+        }
     }
 
     // --- foco de áudio ------------------------------------------------------
