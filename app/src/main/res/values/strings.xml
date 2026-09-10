@@ -1,0 +1,38 @@
+<resources>
+    <string name="app_name">DocVoice</string>
+
+    <string name="abrir_pdf">Abrir PDF</string>
+    <string name="abrir_outro">Abrir outro</string>
+    <string name="ecra_vazio_titulo">Nenhum documento aberto</string>
+    <string name="ecra_vazio_texto">Escolha um PDF do dispositivo. O ficheiro não sai deste telemóvel.</string>
+
+    <string name="a_extrair">A extrair texto</string>
+    <string name="pagina_de">página %1$d de %2$d</string>
+    <string name="folha">fl. %1$d</string>
+
+    <string name="paragrafos_conta">%1$d parágrafos · %2$d páginas</string>
+    <string name="sem_texto">Este PDF não tem texto legível em nenhuma página.</string>
+    <string name="aviso_digitalizado">Documento provavelmente digitalizado: só %1$d de %2$d páginas têm texto. O reconhecimento (OCR) chega no passo 6.</string>
+    <string name="erro_abrir">Não foi possível abrir o documento: %1$s</string>
+    <string name="tentar_de_novo">Tentar de novo</string>
+    <string name="canal_leitura">Leitura em voz alta</string>
+    <string name="posicao_notificacao">parágrafo %1$d de %2$d</string>
+    <string name="tocar">Ler</string>
+    <string name="pausa">Pausa</string>
+    <string name="atras_5">5 parágrafos atrás</string>
+    <string name="frente_5">5 parágrafos à frente</string>
+    <string name="ler_daqui">Ler a partir deste parágrafo</string>
+    <string name="aviso_voz_brasil">Não há voz portuguesa europeia neste telemóvel. A ler com voz brasileira.</string>
+    <string name="aviso_voz_nenhuma">Não há voz portuguesa instalada. Instale uma nas definições de voz do sistema.</string>
+    <string name="entendido">Entendido</string>
+    <string name="fim_documento">Fim do documento.</string>
+    <string name="recentes_titulo">Documentos recentes</string>
+    <string name="percentagem_lida">%1$d%% lido</string>
+    <string name="hoje">hoje</string>
+    <string name="ontem">ontem</string>
+    <string name="ha_dias">há %1$d dias</string>
+    <string name="remover_da_lista">Remover da lista</string>
+    <string name="voltar_a_lista">Documentos</string>
+    <string name="velocidade">Velocidade</string>
+    <string name="voz">Voz</string>
+</resources>

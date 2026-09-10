@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Folha + duas ondas de som. Linear, sem preenchimento. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:pathData="M38,30h20l12,12v24a4,4 0,0 1,-4 4h-28a4,4 0,0 1,-4 -4v-32a4,4 0,0 1,4 -4z"
+        android:strokeColor="#D9A441"
+        android:strokeWidth="3"
+        android:fillColor="#00000000"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M58,30v12h12"
+        android:strokeColor="#D9A441"
+        android:strokeWidth="3"
+        android:fillColor="#00000000"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M74,44a10,10 0,0 1,0 20"
+        android:strokeColor="#D9A441"
+        android:strokeWidth="3"
+        android:fillColor="#00000000"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M78,36a20,20 0,0 1,0 36"
+        android:strokeColor="#7F7A6E"
+        android:strokeWidth="3"
+        android:fillColor="#00000000"
+        android:strokeLineCap="round" />
+</vector>

@@ -1,0 +1,36 @@
+<resources>
+    <string name="abrir_pdf">Открыть PDF</string>
+    <string name="abrir_outro">Открыть другой</string>
+    <string name="ecra_vazio_titulo">Документ не открыт</string>
+    <string name="ecra_vazio_texto">Выберите PDF на устройстве. Файл никуда не уходит с телефона.</string>
+
+    <string name="a_extrair">Извлекаю текст</string>
+    <string name="pagina_de">страница %1$d из %2$d</string>
+    <string name="folha">л. %1$d</string>
+
+    <string name="paragrafos_conta">%1$d абзацев · %2$d страниц</string>
+    <string name="sem_texto">В этом PDF нет читаемого текста ни на одной странице.</string>
+    <string name="aviso_digitalizado">Похоже на скан: текст есть только на %1$d из %2$d страниц. Распознавание (OCR) — шаг 6.</string>
+    <string name="erro_abrir">Не удалось открыть документ: %1$s</string>
+    <string name="tentar_de_novo">Повторить</string>
+    <string name="canal_leitura">Чтение вслух</string>
+    <string name="posicao_notificacao">абзац %1$d из %2$d</string>
+    <string name="tocar">Читать</string>
+    <string name="pausa">Пауза</string>
+    <string name="atras_5">5 абзацев назад</string>
+    <string name="frente_5">5 абзацев вперёд</string>
+    <string name="ler_daqui">Читать с этого абзаца</string>
+    <string name="aviso_voz_brasil">Европейского португальского голоса на телефоне нет. Читаю бразильским.</string>
+    <string name="aviso_voz_nenhuma">Португальского голоса нет вовсе. Поставьте его в системных настройках речи.</string>
+    <string name="entendido">Понял</string>
+    <string name="fim_documento">Конец документа.</string>
+    <string name="recentes_titulo">Недавние документы</string>
+    <string name="percentagem_lida">прочитано %1$d%%</string>
+    <string name="hoje">сегодня</string>
+    <string name="ontem">вчера</string>
+    <string name="ha_dias">%1$d дн. назад</string>
+    <string name="remover_da_lista">Убрать из списка</string>
+    <string name="voltar_a_lista">Документы</string>
+    <string name="velocidade">Скорость</string>
+    <string name="voz">Голос</string>
+</resources>

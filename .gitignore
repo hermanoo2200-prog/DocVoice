@@ -1,0 +1,29 @@
+# Caminhos da máquina de quem constrói — nunca vão para o repositório.
+local.properties
+
+# Notas de trabalho internas, em russo: ficam fora do repositório.
+NOTAS.ru.md
+POR_VERIFICAR.md
+
+# Resultados de construção
+build/
+app/build/
+.gradle/
+.kotlin/
+captures/
+*.apk
+*.aab
+
+# Chaves de assinatura — nunca, em circunstância nenhuma
+*.jks
+*.keystore
+keystore.properties
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+.cxx/
+
+# Sistema
+.DS_Store
+Thumbs.db

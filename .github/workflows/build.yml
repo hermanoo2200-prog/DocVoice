@@ -1,0 +1,97 @@
+name: Construir e publicar APK
+
+# Cada alteração é construída e testada.
+# Cada etiqueta v* (por exemplo v0.4) publica o .apk em Releases.
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write        # necessário só para criar a Release
+
+jobs:
+  construir:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Obter o código
+        uses: actions/checkout@v4
+
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: SDK do Android
+        uses: android-actions/setup-android@v3
+
+      - name: Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Testes (sem telemóvel)
+        run: ./gradlew --no-daemon testDebugUnitTest
+
+      - name: Relatório dos testes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorio-de-testes
+          path: app/build/reports/tests/
+          if-no-files-found: ignore
+
+      - name: Construir o APK
+        run: ./gradlew --no-daemon assembleDebug
+
+      - name: Dar-lhe um nome legível
+        id: nome
+        run: |
+          origem=app/build/outputs/apk/debug/app-debug.apk
+          case "$GITHUB_REF" in
+            refs/tags/*)
+              # Nome fixo: a ligação de descarga tem de ser sempre a mesma,
+              # para poder ser enviada a alguém e continuar a funcionar.
+              destino="DocVoice.apk" ;;
+            *)
+              destino="DocVoice-$(git rev-parse --short HEAD).apk" ;;
+          esac
+          cp "$origem" "$destino"
+          echo "ficheiro=$destino" >> "$GITHUB_OUTPUT"
+          echo "sha256=$(sha256sum "$destino" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          sha256sum "$destino"
+
+      - name: Guardar o APK de cada construção
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.nome.outputs.ficheiro }}
+          path: ${{ steps.nome.outputs.ficheiro }}
+
+      - name: Publicar em Releases (só em etiquetas v*)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.nome.outputs.ficheiro }}
+          generate_release_notes: true
+          body: |
+            ## Descarregar
+
+            **[DocVoice.apk](https://github.com/${{ github.repository }}/releases/latest/download/DocVoice.apk)**
+            — abra este ficheiro no telemóvel.
+
+            Esta ligação aponta sempre para a versão mais recente, por isso
+            pode ser enviada a alguém e continua a funcionar.
+
+            O telemóvel vai avisar que a aplicação não vem da loja Play: é
+            esperado. Os passos estão no
+            [README](https://github.com/${{ github.repository }}#instalar-no-telem%C3%B3vel)
+            e as verificações que pedimos em
+            [COMO_TESTAR.md](https://github.com/${{ github.repository }}/blob/main/COMO_TESTAR.md).
+
+            `sha256: ${{ steps.nome.outputs.sha256 }}`
+
+            Versão de ensaio, assinada com a chave de depuração: ao actualizar
+            a partir de uma versão anterior pode ser preciso desinstalar primeiro.
