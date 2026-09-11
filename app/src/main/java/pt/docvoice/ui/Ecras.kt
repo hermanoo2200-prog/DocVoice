@@ -1,8 +1,10 @@
 package pt.docvoice.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.clickable
@@ -19,6 +21,9 @@ import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -40,6 +45,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,6 +68,7 @@ import pt.docvoice.leitura.Documento
 import pt.docvoice.leitura.SessaoDeLeitura
 import pt.docvoice.text.Paragraph
 import pt.docvoice.ui.theme.Acento
+import pt.docvoice.ui.theme.Apagado
 import pt.docvoice.ui.theme.EstiloEtiqueta
 import pt.docvoice.ui.theme.EstiloInterface
 import pt.docvoice.ui.theme.EstiloParagrafo
@@ -131,9 +144,16 @@ fun EcraRecentes(
     aoAbrirRecente: (RegistoDocumento) -> Unit,
     aoEsquecer: (RegistoDocumento) -> Unit
 ) {
-    Column(Modifier.fillMaxSize()) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            // O topo ficava por baixo da barra de estado do sistema: metade do
+            // botão «Abrir PDF» não respondia ao toque, porque quem ficava com
+            // esse pedaço de ecrã era o sistema.
+            .statusBarsPadding()
+    ) {
         Row(
-            Modifier.fillMaxWidth().padding(start = 22.dp, end = 12.dp, top = 22.dp, bottom = 14.dp),
+            Modifier.fillMaxWidth().padding(start = 20.dp, end = 12.dp, top = 18.dp, bottom = 2.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
@@ -145,31 +165,69 @@ fun EcraRecentes(
                 Text(stringResource(R.string.abrir_pdf), style = EstiloInterface.copy(color = Acento))
             }
         }
-        Box(Modifier.fillMaxWidth().height(1.dp).background(Linha))
 
-        LazyColumn(Modifier.fillMaxSize()) {
+        // Quantos são: era a primeira coisa que faltava saber ao olhar para a lista.
+        Text(
+            pluralStringResource(R.plurals.documentos_conta, recentes.size, recentes.size),
+            style = EstiloEtiqueta,
+            modifier = Modifier.padding(start = 20.dp, bottom = 14.dp)
+        )
+
+        LazyColumn(
+            Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 14.dp, end = 14.dp, bottom = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
             items(recentes, key = { it.chave }) { registo ->
-                LinhaDeRecente(
+                CartaoDeDocumento(
                     registo = registo,
                     aoAbrir = { aoAbrirRecente(registo) },
                     aoEsquecer = { aoEsquecer(registo) }
                 )
-                Box(Modifier.fillMaxWidth().padding(start = 22.dp).height(1.dp).background(Linha))
             }
         }
     }
 }
 
+/**
+ * Uma prateleira, não uma lista de ficheiros: cada documento é um objecto com
+ * cara própria — folha de texto ou digitalização — e mostra de relance quanto
+ * já foi lido.
+ */
 @Composable
-private fun LinhaDeRecente(
+private fun CartaoDeDocumento(
     registo: RegistoDocumento,
     aoAbrir: () -> Unit,
     aoEsquecer: () -> Unit
 ) {
+    val digitalizado = registo.provavelDigitalizacao == true
     Row(
-        Modifier.fillMaxWidth().clickable(onClick = aoAbrir).padding(start = 22.dp, end = 6.dp, top = 16.dp, bottom = 16.dp),
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .border(1.dp, Linha, RoundedCornerShape(12.dp))
+            .clickable(onClick = aoAbrir)
+            .padding(start = 12.dp, end = 4.dp, top = 12.dp, bottom = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        Box(
+            Modifier.size(42.dp).clip(RoundedCornerShape(9.dp)).background(Linha),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                painter = painterResource(
+                    if (digitalizado) R.drawable.ic_digitalizado else R.drawable.ic_documento
+                ),
+                contentDescription = stringResource(
+                    if (digitalizado) R.string.documento_digitalizado else R.string.documento_com_texto
+                ),
+                tint = if (digitalizado) Apagado else Acento,
+                modifier = Modifier.size(22.dp)
+            )
+        }
+
+        Spacer(Modifier.width(12.dp))
+
         Column(Modifier.weight(1f)) {
             Text(
                 registo.nome,
@@ -177,31 +235,49 @@ private fun LinhaDeRecente(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(5.dp))
             Text(
-                stringResource(R.string.percentagem_lida, registo.percentagem) +
-                    "  ·  " + stringResource(R.string.folha, registo.pagina) +
-                    "  ·  " + quandoLegivel(registo.quando),
+                stringResource(R.string.folha, registo.pagina) + "  ·  " + quandoLegivel(registo.quando),
                 style = EstiloEtiqueta
             )
-            Spacer(Modifier.height(10.dp))
-            LinearProgressIndicator(
-                progress = { registo.percentagem / 100f },
-                modifier = Modifier.fillMaxWidth().height(2.dp),
-                color = Acento,
-                trackColor = Linha,
-                gapSize = 0.dp,
-                drawStopIndicator = {}
-            )
         }
-        IconButton(onClick = aoEsquecer) {
+
+        Spacer(Modifier.width(10.dp))
+        AnelDeProgresso(registo.percentagem)
+
+        IconButton(onClick = aoEsquecer, modifier = Modifier.size(38.dp)) {
             Icon(
                 painter = painterResource(R.drawable.ic_remover),
                 contentDescription = stringResource(R.string.remover_da_lista),
-                tint = Texto.copy(alpha = 0.45f),
-                modifier = Modifier.size(20.dp)
+                tint = Texto.copy(alpha = 0.4f),
+                modifier = Modifier.size(17.dp)
             )
         }
+    }
+}
+
+/** Quanto já foi lido, em anel: lê-se de relance, sem contas. */
+@Composable
+private fun AnelDeProgresso(percentagem: Int) {
+    val fraccao = (percentagem / 100f).coerceIn(0f, 1f)
+    Box(Modifier.size(42.dp), contentAlignment = Alignment.Center) {
+        Canvas(Modifier.fillMaxSize()) {
+            val traco = 3.dp.toPx()
+            val canto = Offset(traco / 2f, traco / 2f)
+            val medida = Size(size.width - traco, size.height - traco)
+            drawArc(
+                color = Linha, startAngle = -90f, sweepAngle = 360f, useCenter = false,
+                topLeft = canto, size = medida, style = Stroke(traco, cap = StrokeCap.Round)
+            )
+            if (fraccao > 0f) drawArc(
+                color = Acento, startAngle = -90f, sweepAngle = 360f * fraccao, useCenter = false,
+                topLeft = canto, size = medida, style = Stroke(traco, cap = StrokeCap.Round)
+            )
+        }
+        Text(
+            "$percentagem",
+            style = EstiloEtiqueta.copy(color = Texto, fontSize = 12.sp)
+        )
     }
 }
 
@@ -255,7 +331,12 @@ fun EcraLeitura(
         if (!aVista) listaEstado.animateScrollToItem(sessao.indice)
     }
 
-    Column(Modifier.fillMaxSize()) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .navigationBarsPadding()
+    ) {
         Cabecalho(documento, aoVoltarALista)
 
         when {
@@ -415,31 +496,84 @@ private fun BarraDeBaixo(
         if (painelAberto) {
             Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
                 Text(stringResource(R.string.velocidade), style = EstiloEtiqueta)
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    VELOCIDADES.forEach { v ->
-                        Ficha(
-                            texto = etiquetaDeVelocidade(v),
-                            escolhida = kotlin.math.abs(v - sessao.velocidade) < 0.01f,
-                            aoTocar = { aoMudarVelocidade(v) }
+                Spacer(Modifier.height(6.dp))
+                // Menos e mais, com o nome pelo meio. Números com «×» diziam
+                // pouco a quem não anda nisto.
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    val i = indiceDaVelocidade(sessao.velocidade)
+                    IconButton(
+                        onClick = { aoMudarVelocidade(VELOCIDADES[(i - 1).coerceAtLeast(0)]) },
+                        enabled = i > 0
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_menos),
+                            contentDescription = stringResource(R.string.mais_devagar),
+                            tint = if (i > 0) Texto else Apagado,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                    Text(
+                        stringResource(nomeDaVelocidade(sessao.velocidade)),
+                        style = EstiloInterface.copy(color = Texto, fontSize = 16.sp),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(
+                        onClick = { aoMudarVelocidade(VELOCIDADES[(i + 1).coerceAtMost(VELOCIDADES.lastIndex)]) },
+                        enabled = i < VELOCIDADES.lastIndex
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_mais),
+                            contentDescription = stringResource(R.string.mais_depressa),
+                            tint = if (i < VELOCIDADES.lastIndex) Texto else Apagado,
+                            modifier = Modifier.size(22.dp)
                         )
                     }
                 }
+
                 if (sessao.vozes.size > 1) {
-                    Spacer(Modifier.height(16.dp))
-                    Text(stringResource(R.string.voz), style = EstiloEtiqueta)
-                    Spacer(Modifier.height(8.dp))
-                    Row(
-                        Modifier.horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    Spacer(Modifier.height(14.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_globo),
+                            contentDescription = null,
+                            tint = Apagado,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.lingua_da_voz), style = EstiloEtiqueta)
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    // Uma linha por voz, com o nome escrito por extenso.
+                    // Toca-se e fica escolhida: sem listas de códigos.
+                    // Altura travada: há motores com uma dúzia de vozes, e a
+                    // lista inteira empurrava os comandos para fora do ecrã.
+                    Column(
+                        Modifier
+                            .heightIn(max = 232.dp)
+                            .verticalScroll(rememberScrollState())
                     ) {
-                        sessao.vozes.forEach { voz ->
-                            Ficha(
-                                texto = voz.etiqueta,
-                                escolhida = voz.nome == sessao.vozActual,
-                                aoTocar = { aoMudarVoz(voz.nome) }
+                    sessao.vozes.forEach { voz ->
+                        val escolhida = voz.nome == sessao.vozActual
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { aoMudarVoz(voz.nome) }
+                                .padding(horizontal = 4.dp, vertical = 11.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                voz.etiqueta,
+                                style = EstiloInterface.copy(
+                                    color = if (escolhida) Acento else Texto,
+                                    fontSize = 15.sp
+                                ),
+                                modifier = Modifier.weight(1f)
                             )
+                            if (escolhida) Text("✓", style = EstiloInterface.copy(color = Acento, fontSize = 15.sp))
                         }
+                    }
                     }
                 }
                 Spacer(Modifier.height(4.dp))
@@ -458,10 +592,10 @@ private fun BarraDeBaixo(
             Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = { aoSaltar(-5) }) {
+            IconButton(onClick = { aoSaltar(-1) }) {
                 Icon(
                     painter = painterResource(R.drawable.ic_atras),
-                    contentDescription = stringResource(R.string.atras_5),
+                    contentDescription = stringResource(R.string.atras),
                     tint = Texto,
                     modifier = Modifier.size(26.dp)
                 )
@@ -474,10 +608,10 @@ private fun BarraDeBaixo(
                     modifier = Modifier.size(32.dp)
                 )
             }
-            IconButton(onClick = { aoSaltar(5) }) {
+            IconButton(onClick = { aoSaltar(1) }) {
                 Icon(
                     painter = painterResource(R.drawable.ic_frente),
-                    contentDescription = stringResource(R.string.frente_5),
+                    contentDescription = stringResource(R.string.frente),
                     tint = Texto,
                     modifier = Modifier.size(26.dp)
                 )
@@ -487,20 +621,40 @@ private fun BarraDeBaixo(
                 stringResource(R.string.posicao_notificacao, sessao.indice + 1, sessao.total),
                 style = EstiloEtiqueta
             )
+            IconButton(onClick = { painelAberto = !painelAberto }) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_globo),
+                    contentDescription = stringResource(R.string.lingua_da_voz),
+                    tint = if (painelAberto) Acento else Texto,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
             TextButton(onClick = { painelAberto = !painelAberto }) {
                 Text(
-                    etiquetaDeVelocidade(sessao.velocidade),
-                    style = EstiloEtiqueta.copy(color = if (painelAberto) Acento else Texto)
+                    stringResource(nomeDaVelocidade(sessao.velocidade)),
+                    style = EstiloEtiqueta.copy(color = if (painelAberto) Acento else Texto),
+                    maxLines = 1,
+                    softWrap = false
                 )
             }
         }
     }
 }
 
-/** 1,25× — vírgula decimal, como se escreve em português. */
-private fun etiquetaDeVelocidade(v: Float): String {
-    val texto = if (v == v.toInt().toFloat()) "${v.toInt()}" else "%.2f".format(v).trimEnd('0').trimEnd('.', ',')
-    return texto.replace('.', ',') + "×"
+/** Qual dos seis degraus é o actual. */
+private fun indiceDaVelocidade(v: Float): Int {
+    val i = VELOCIDADES.indexOfFirst { kotlin.math.abs(it - v) < 0.01f }
+    return if (i >= 0) i else VELOCIDADES.indexOf(1f)
+}
+
+/** A velocidade dita por palavras: «Normal» diz mais do que «1,25×». */
+private fun nomeDaVelocidade(v: Float): Int = when (indiceDaVelocidade(v)) {
+    0 -> R.string.v_devagar          // 0,75
+    1 -> R.string.v_normal           // 1
+    2 -> R.string.v_um_pouco_mais    // 1,25
+    3 -> R.string.v_rapido           // 1,5
+    4 -> R.string.v_muito_rapido     // 1,75
+    else -> R.string.v_o_mais_rapido // 2
 }
 
 @Composable

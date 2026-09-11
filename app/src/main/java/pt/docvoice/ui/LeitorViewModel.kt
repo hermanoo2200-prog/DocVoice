@@ -73,7 +73,14 @@ class LeitorViewModel(app: Application) : AndroidViewModel(app) {
                     paginasComTexto = paginas.count { it.temTexto },
                     paragrafos = ParagraphSplitter.split(paginas)
                 )
-                val indice = restaurar?.let { documento.indiceDe(it.pagina, it.indiceNaPagina) } ?: 0
+                // Sem posição dada (abriu-se pelo selector do sistema, não pela
+                // lista de recentes), procura-se a que ficou guardada deste mesmo
+                // documento. Sem isto, ir buscar outro PDF e voltar a este
+                // recomeçava do princípio.
+                val posicao = restaurar
+                    ?: arquivo.procurar(RegistoDocumento.chaveDe(nome, tamanho))
+                        ?.let { Posicao(it.pagina, it.indiceNaPagina) }
+                val indice = posicao?.let { documento.indiceDe(it.pagina, it.indiceNaPagina) } ?: 0
                 SessaoDeLeitura.carregar(documento, indice)
                 _estado.value = EstadoLeitura.Aberto(documento)
             } catch (e: CancellationException) {

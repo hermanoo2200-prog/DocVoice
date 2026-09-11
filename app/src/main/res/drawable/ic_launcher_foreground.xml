@@ -1,32 +1,88 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Folha + duas ondas de som. Linear, sem preenchimento. -->
+<!--
+  Folha com três marcas e duas ondas de som.
+
+  Desenhado dentro da zona segura do ícone adaptativo (18..90 dos 108):
+  o que sair daí é cortado pela máscara do fabricante. Sem preenchimentos
+  nem gradientes — o que tem de se ler a 24 px é o contorno.
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+
+    <!-- folha -->
     <path
-        android:pathData="M38,30h20l12,12v24a4,4 0,0 1,-4 4h-28a4,4 0,0 1,-4 -4v-32a4,4 0,0 1,4 -4z"
-        android:strokeColor="#D9A441"
-        android:strokeWidth="3"
+        android:pathData="M28,24h22l10,10v46a3,3 0 0 1,-3 3h-29a3,3 0 0 1,-3 -3v-53a3,3 0 0 1,3 -3z"
+        android:strokeColor="#E9E4DA"
+        android:strokeWidth="3.4"
         android:fillColor="#00000000"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <!-- canto dobrado -->
+    <path
+        android:pathData="M50,24v10h10"
+        android:strokeColor="#E9E4DA"
+        android:strokeWidth="3.4"
+        android:fillColor="#00000000"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+
+    <!-- três marcas -->
+    <path
+        android:pathData="M32,47l3,3 5,-6"
+        android:strokeColor="#D9A441"
+        android:strokeWidth="3.4"
+        android:fillColor="#00000000"
+        android:strokeLineCap="round"
         android:strokeLineJoin="round" />
     <path
-        android:pathData="M58,30v12h12"
+        android:pathData="M32,58l3,3 5,-6"
         android:strokeColor="#D9A441"
-        android:strokeWidth="3"
+        android:strokeWidth="3.4"
         android:fillColor="#00000000"
+        android:strokeLineCap="round"
         android:strokeLineJoin="round" />
     <path
-        android:pathData="M74,44a10,10 0,0 1,0 20"
+        android:pathData="M32,69l3,3 5,-6"
         android:strokeColor="#D9A441"
-        android:strokeWidth="3"
+        android:strokeWidth="3.4"
+        android:fillColor="#00000000"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+
+    <!-- três linhas de texto -->
+    <path
+        android:pathData="M46,48h11"
+        android:strokeColor="#E9E4DA"
+        android:strokeWidth="3.4"
         android:fillColor="#00000000"
         android:strokeLineCap="round" />
     <path
-        android:pathData="M78,36a20,20 0,0 1,0 36"
-        android:strokeColor="#7F7A6E"
-        android:strokeWidth="3"
+        android:pathData="M46,59h11"
+        android:strokeColor="#E9E4DA"
+        android:strokeWidth="3.4"
+        android:fillColor="#00000000"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M46,70h8"
+        android:strokeColor="#E9E4DA"
+        android:strokeWidth="3.4"
+        android:fillColor="#00000000"
+        android:strokeLineCap="round" />
+
+    <!-- som -->
+    <path
+        android:pathData="M71,49a10,10 0 0 1,0 14"
+        android:strokeColor="#D9A441"
+        android:strokeWidth="3.4"
+        android:fillColor="#00000000"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M78,42a19,19 0 0 1,0 28"
+        android:strokeColor="#D9A441"
+        android:strokeWidth="3.4"
         android:fillColor="#00000000"
         android:strokeLineCap="round" />
 </vector>

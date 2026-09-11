@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import pt.docvoice.text.DetectorDeIdioma
+import pt.docvoice.text.TrocosDeFala
 import pt.docvoice.text.Idioma
 import java.util.Locale
 
@@ -183,9 +184,22 @@ object SessaoDeLeitura {
             .filter { it.locale.language.equals(lingua, ignoreCase = true) }
             .filterNot { it.isNetworkConnectionRequired }
             .sortedBy { it.name }
-            .mapIndexed { i, v ->
-                val pais = v.locale.country.ifBlank { v.locale.language }
-                VozDisponivel(nome = v.name, etiqueta = "$pais · ${i + 1}")
+            .let { ordenadas ->
+                // «Português (Portugal)», não «pt-PT»: quem escolhe a voz não
+                // tem de saber códigos de língua. O número só entra quando o
+                // mesmo idioma traz mais do que uma voz — e conta dentro desse
+                // idioma, senão via-se «Brasil · 1, · 3, · 4», que não diz nada.
+                val contadas = HashMap<String, Int>()
+                ordenadas.map { v ->
+                    val nomeDaLingua = runCatching {
+                        v.locale.getDisplayName(v.locale).replaceFirstChar { c -> c.uppercase() }
+                    }.getOrNull()?.takeIf { it.isNotBlank() }
+                        ?: v.locale.country.ifBlank { v.locale.language }
+                    val quantasIguais = ordenadas.count { it.locale == v.locale }
+                    val ordem = contadas.merge(nomeDaLingua, 1, Int::plus) ?: 1
+                    val etiqueta = if (quantasIguais > 1) "$nomeDaLingua · $ordem" else nomeDaLingua
+                    VozDisponivel(nome = v.name, etiqueta = etiqueta)
+                }
             }
     }
 
@@ -198,7 +212,7 @@ object SessaoDeLeitura {
     fun definirVoz(nome: String) {
         aplicarVozPorNome(nome)
         _estado.value = _estado.value.copy(vozActual = nome)
-        if (_estado.value.aLer) falarActual(TextToSpeech.QUEUE_FLUSH)
+        if (_estado.value.aLer) refazerTroco()
     }
 
     /** Chamada pelas preferências guardadas, antes ou depois de o motor arrancar. */
@@ -215,7 +229,7 @@ object SessaoDeLeitura {
         if (velocidade == _estado.value.velocidade && tts != null) return
         _estado.value = _estado.value.copy(velocidade = velocidade)
         tts?.setSpeechRate(velocidade)
-        if (_estado.value.aLer) falarActual(TextToSpeech.QUEUE_FLUSH)
+        if (_estado.value.aLer) refazerTroco()
     }
 
     // --- comandos -----------------------------------------------------------
@@ -269,12 +283,34 @@ object SessaoDeLeitura {
     private var geracao = 0
     private var idEmCurso: String? = null
 
+    /**
+     * Um parágrafo comprido vai ao motor em troços (ver [TrocosDeFala]).
+     * No ecrã continua a ser um bloco só; quem ouve não dá pelo corte, porque
+     * ele cai em pontuação e o troço seguinte entra em fila sem pausa.
+     */
+    private var trocos: List<String> = emptyList()
+    private var troco = 0
+
     private fun falarActual(modo: Int) {
         val paragrafo = _estado.value.paragrafoActual ?: return
         if (modo == TextToSpeech.QUEUE_FLUSH) geracao++
-        val id = "${paragrafo.id}#$geracao"
+        trocos = TrocosDeFala.partir(paragrafo.texto)
+        troco = 0
+        falarTroco(modo)
+    }
+
+    /** Recomeça o troço em curso — usado quando muda a voz ou a velocidade. */
+    private fun refazerTroco() {
+        geracao++
+        falarTroco(TextToSpeech.QUEUE_FLUSH)
+    }
+
+    private fun falarTroco(modo: Int) {
+        val paragrafo = _estado.value.paragrafoActual ?: return
+        val texto = trocos.getOrNull(troco) ?: return
+        val id = "${paragrafo.id}#$geracao/$troco"
         idEmCurso = id
-        tts?.speak(paragrafo.texto, modo, null, id)
+        tts?.speak(texto, modo, null, id)
     }
 
     private val ouvinte = object : UtteranceProgressListener() {
@@ -284,6 +320,11 @@ object SessaoDeLeitura {
             val estado = _estado.value
             if (!estado.aLer) return
             if (utteranceId != idEmCurso) return // fala já abandonada: ignorar
+            if (troco + 1 < trocos.size) {       // o mesmo parágrafo ainda não acabou
+                troco++
+                falarTroco(TextToSpeech.QUEUE_ADD)
+                return
+            }
             if (estado.indice + 1 >= estado.total) {
                 largarFoco()
                 _estado.value = estado.copy(aLer = false) // fim do documento

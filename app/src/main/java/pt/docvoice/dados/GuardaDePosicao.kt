@@ -37,7 +37,8 @@ object GuardaDePosicao {
                         pagina = paragrafo.pagina,
                         indiceNaPagina = paragrafo.indiceNaPagina,
                         indiceCorrido = estado.indice,
-                        quando = System.currentTimeMillis()
+                        quando = System.currentTimeMillis(),
+                        paginasComTexto = documento.paginasComTexto
                     )
                 }
                 .filterNotNull()

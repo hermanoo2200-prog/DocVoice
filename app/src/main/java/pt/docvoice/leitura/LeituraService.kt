@@ -43,7 +43,12 @@ class LeituraService : Service() {
         const val ACCAO_FRENTE = "pt.docvoice.FRENTE"
         const val ACCAO_FECHAR = "pt.docvoice.FECHAR"
 
-        const val SALTO = 5
+        /**
+         * Um parágrafo de cada vez. Cinco era grosseiro de mais: quem não
+         * apanhou uma frase quer voltar uma, e em texto jurídico cinco
+         * parágrafos atrás é outro assunto por completo.
+         */
+        const val SALTO = 1
 
         private const val TECTO_DO_BLOQUEIO = 30 * 60 * 1000L      // meia hora
         private const val INTERVALO_DE_RENOVACAO = 10 * 60 * 1000L // dez minutos
@@ -87,7 +92,16 @@ class LeituraService : Service() {
         // Tem de acontecer nos primeiros segundos, antes de tratar a acção.
         arrancarEmPrimeiroPlano()
 
-        when (intent?.action) {
+        // Intenção nula quer dizer que foi o sistema a ressuscitar o serviço,
+        // não uma pessoa a carregar num botão. Sem ninguém a ler, o serviço
+        // não tem nada que estar de pé — era isto que fazia a aplicação
+        // começar a falar sozinha muito depois de ter sido fechada.
+        if (intent == null) {
+            if (!SessaoDeLeitura.estado.value.aLer) pararTudo()
+            return START_NOT_STICKY
+        }
+
+        when (intent.action) {
             ACCAO_ALTERNAR -> SessaoDeLeitura.alternar()
             ACCAO_ATRAS -> SessaoDeLeitura.saltar(-SALTO)
             ACCAO_FRENTE -> SessaoDeLeitura.saltar(SALTO)
@@ -98,7 +112,21 @@ class LeituraService : Service() {
                 return START_NOT_STICKY
             }
         }
-        return START_STICKY
+
+        // Nunca START_STICKY: quem manda recomeçar é quem carrega no botão.
+        return START_NOT_STICKY
+    }
+
+    /**
+     * A aplicação foi retirada das recentes. Se não estava a ler, o serviço
+     * vai-se embora com ela — não fica nada de pé à espera de acordar.
+     */
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        if (!SessaoDeLeitura.estado.value.aLer) {
+            SessaoDeLeitura.libertar()
+            pararTudo()
+        }
+        super.onTaskRemoved(rootIntent)
     }
 
     override fun onDestroy() {
@@ -158,13 +186,13 @@ class LeituraService : Service() {
             .setSilent(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setCategory(NotificationCompat.CATEGORY_TRANSPORT)
-            .addAction(R.drawable.ic_atras, getString(R.string.atras_5), accao(ACCAO_ATRAS))
+            .addAction(R.drawable.ic_atras, getString(R.string.atras), accao(ACCAO_ATRAS))
             .addAction(
                 if (estado.aLer) R.drawable.ic_pausa else R.drawable.ic_play,
                 getString(if (estado.aLer) R.string.pausa else R.string.tocar),
                 accao(ACCAO_ALTERNAR)
             )
-            .addAction(R.drawable.ic_frente, getString(R.string.frente_5), accao(ACCAO_FRENTE))
+            .addAction(R.drawable.ic_frente, getString(R.string.frente), accao(ACCAO_FRENTE))
             .build()
     }
 

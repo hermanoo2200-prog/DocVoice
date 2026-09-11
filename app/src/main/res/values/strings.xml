@@ -19,8 +19,8 @@
     <string name="posicao_notificacao">parágrafo %1$d de %2$d</string>
     <string name="tocar">Ler</string>
     <string name="pausa">Pausa</string>
-    <string name="atras_5">5 parágrafos atrás</string>
-    <string name="frente_5">5 parágrafos à frente</string>
+    <string name="atras">Parágrafo anterior</string>
+    <string name="frente">Parágrafo seguinte</string>
     <string name="ler_daqui">Ler a partir deste parágrafo</string>
     <string name="aviso_voz_brasil">Não há voz portuguesa europeia neste telemóvel. A ler com voz brasileira.</string>
     <string name="aviso_voz_nenhuma">Não há voz portuguesa instalada. Instale uma nas definições de voz do sistema.</string>
@@ -35,4 +35,19 @@
     <string name="voltar_a_lista">Documentos</string>
     <string name="velocidade">Velocidade</string>
     <string name="voz">Voz</string>
+    <string name="documento_digitalizado">Documento digitalizado</string>
+    <string name="documento_com_texto">Documento com texto</string>
+    <string name="lingua_da_voz">Língua da voz</string>
+    <string name="mais_devagar">Mais devagar</string>
+    <string name="mais_depressa">Mais depressa</string>
+    <plurals name="documentos_conta">
+        <item quantity="one">%1$d documento</item>
+        <item quantity="other">%1$d documentos</item>
+    </plurals>
+    <string name="v_o_mais_rapido">Máximo</string>
+    <string name="v_devagar">Devagar</string>
+    <string name="v_normal">Normal</string>
+    <string name="v_um_pouco_mais">Um pouco mais</string>
+    <string name="v_rapido">Rápido</string>
+    <string name="v_muito_rapido">Muito rápido</string>
 </resources>

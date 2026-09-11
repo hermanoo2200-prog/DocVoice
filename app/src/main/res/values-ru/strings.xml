@@ -17,8 +17,8 @@
     <string name="posicao_notificacao">абзац %1$d из %2$d</string>
     <string name="tocar">Читать</string>
     <string name="pausa">Пауза</string>
-    <string name="atras_5">5 абзацев назад</string>
-    <string name="frente_5">5 абзацев вперёд</string>
+    <string name="atras">Абзац назад</string>
+    <string name="frente">Абзац вперёд</string>
     <string name="ler_daqui">Читать с этого абзаца</string>
     <string name="aviso_voz_brasil">Европейского португальского голоса на телефоне нет. Читаю бразильским.</string>
     <string name="aviso_voz_nenhuma">Португальского голоса нет вовсе. Поставьте его в системных настройках речи.</string>
@@ -33,4 +33,21 @@
     <string name="voltar_a_lista">Документы</string>
     <string name="velocidade">Скорость</string>
     <string name="voz">Голос</string>
+    <string name="documento_digitalizado">Скан</string>
+    <string name="documento_com_texto">Документ с текстом</string>
+    <string name="lingua_da_voz">Язык голоса</string>
+    <string name="mais_devagar">Медленнее</string>
+    <string name="mais_depressa">Быстрее</string>
+    <plurals name="documentos_conta">
+        <item quantity="one">%1$d документ</item>
+        <item quantity="few">%1$d документа</item>
+        <item quantity="many">%1$d документов</item>
+        <item quantity="other">%1$d документа</item>
+    </plurals>
+    <string name="v_o_mais_rapido">Максимум</string>
+    <string name="v_devagar">Медленно</string>
+    <string name="v_normal">Обычно</string>
+    <string name="v_um_pouco_mais">Чуть быстрее</string>
+    <string name="v_rapido">Быстро</string>
+    <string name="v_muito_rapido">Очень быстро</string>
 </resources>
