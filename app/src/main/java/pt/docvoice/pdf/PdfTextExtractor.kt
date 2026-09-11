@@ -2,6 +2,7 @@ package pt.docvoice.pdf
 
 import android.content.ContentResolver
 import android.net.Uri
+import android.util.Log
 import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.text.PDFTextStripper
 import kotlinx.coroutines.Dispatchers
@@ -19,6 +20,7 @@ class PdfTextExtractor(private val resolver: ContentResolver) {
 
     suspend fun extrair(uri: Uri, progresso: (feitas: Int, total: Int) -> Unit): List<PageText> =
         withContext(Dispatchers.IO) {
+            val arranque = System.currentTimeMillis()
             val entrada = resolver.openInputStream(uri)
                 ?: error("o sistema não devolveu o ficheiro")
             entrada.use { fluxo ->
@@ -33,6 +35,13 @@ class PdfTextExtractor(private val resolver: ContentResolver) {
                         paginas += PageText(n, stripper.getText(doc))
                         progresso(n, total)
                     }
+                    // Quantas folhas e quanto tempo. Nunca o que lá está
+                    // escrito: o registo do sistema é legível por outras
+                    // aplicações, e o documento é de quem o escreveu.
+                    Log.i(
+                        "DocVoice",
+                        "extraccao: $total folhas em ${System.currentTimeMillis() - arranque} ms"
+                    )
                     paginas
                 }
             }

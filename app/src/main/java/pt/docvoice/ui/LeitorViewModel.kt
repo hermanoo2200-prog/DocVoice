@@ -20,6 +20,7 @@ import pt.docvoice.R
 import pt.docvoice.dados.ArquivoDeRecentes
 import pt.docvoice.dados.Preferencias
 import pt.docvoice.dados.RegistoDocumento
+import pt.docvoice.leitura.CacheDeDocumentos
 import pt.docvoice.leitura.Documento
 import pt.docvoice.leitura.SessaoDeLeitura
 import pt.docvoice.pdf.PdfTextExtractor
@@ -58,6 +59,32 @@ class LeitorViewModel(app: Application) : AndroidViewModel(app) {
         trabalho = viewModelScope.launch {
             val ctx = getApplication<Application>()
             val (nome, tamanho) = nomeETamanho(ctx, uri)
+
+            // Já está aberto este mesmo documento: não há nada a fazer senão
+            // voltar ao ecrã de leitura. Nem extrair, nem parar a voz —
+            // carregar no documento que já se está a ouvir não pode calá-lo.
+            val jaAberto = SessaoDeLeitura.estado.value.documento
+            if (jaAberto != null && jaAberto.nome == nome && jaAberto.tamanho == tamanho) {
+                _estado.value = EstadoLeitura.Aberto(jaAberto)
+                return@launch
+            }
+
+            // Outro documento, mas já extraído nesta sessão: entra de imediato.
+            val guardado = CacheDeDocumentos.procurar(nome, tamanho, uri)
+            if (guardado != null) {
+                SessaoDeLeitura.pausar()
+                runCatching { guardarPermissao(ctx, uri) }
+                val onde = restaurar
+                    ?: arquivo.procurar(RegistoDocumento.chaveDe(nome, tamanho))
+                        ?.let { Posicao(it.pagina, it.indiceNaPagina) }
+                SessaoDeLeitura.carregar(
+                    guardado,
+                    onde?.let { guardado.indiceDe(it.pagina, it.indiceNaPagina) } ?: 0
+                )
+                _estado.value = EstadoLeitura.Aberto(guardado)
+                return@launch
+            }
+
             SessaoDeLeitura.pausar()
             _estado.value = EstadoLeitura.AExtrair(nome, 0, 0)
             try {
@@ -81,6 +108,7 @@ class LeitorViewModel(app: Application) : AndroidViewModel(app) {
                     ?: arquivo.procurar(RegistoDocumento.chaveDe(nome, tamanho))
                         ?.let { Posicao(it.pagina, it.indiceNaPagina) }
                 val indice = posicao?.let { documento.indiceDe(it.pagina, it.indiceNaPagina) } ?: 0
+                CacheDeDocumentos.guardar(documento)
                 SessaoDeLeitura.carregar(documento, indice)
                 _estado.value = EstadoLeitura.Aberto(documento)
             } catch (e: CancellationException) {
@@ -97,6 +125,7 @@ class LeitorViewModel(app: Application) : AndroidViewModel(app) {
         abrir(Uri.parse(registo.uri), Posicao(registo.pagina, registo.indiceNaPagina))
 
     fun esquecer(registo: RegistoDocumento) {
+        CacheDeDocumentos.esquecer(registo.chave)
         viewModelScope.launch { arquivo.esquecer(registo.chave) }
     }
 
