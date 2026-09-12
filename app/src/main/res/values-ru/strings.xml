@@ -57,4 +57,5 @@
     <string name="apagar_tudo_guardado">Стереть всё сохранённое</string>
     <string name="apagado_tudo">Стёрто. Документы снова будут разбираться из PDF.</string>
     <string name="voltar">Назад</string>
+    <string name="ir_para_a_leitura">К текущему месту</string>
 </resources>

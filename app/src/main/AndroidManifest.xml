@@ -43,9 +43,16 @@
             </intent-filter>
         </activity>
 
+        <!--
+          stopWithTask: quando a aplicação é varrida das recentes, é o próprio
+          sistema que pára este serviço. Não se fica à espera do aviso
+          onTaskRemoved — num telemóvel a sério esse aviso não chegou, e a
+          leitura continuou sozinha depois de a aplicação ter sido fechada.
+        -->
         <service
             android:name=".leitura.LeituraService"
             android:exported="false"
+            android:stopWithTask="true"
             android:foregroundServiceType="mediaPlayback" />
 
     </application>

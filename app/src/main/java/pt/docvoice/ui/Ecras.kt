@@ -44,8 +44,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.StrokeCap
@@ -61,6 +65,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 import pt.docvoice.R
 import pt.docvoice.dados.Preferencias.Companion.VELOCIDADES
 import pt.docvoice.dados.RegistoDocumento
@@ -396,6 +401,13 @@ fun EcraLeitura(
         }
     }
 
+    // Ao entrar no ecrã — voltar à aplicação depois de ela ter estado no
+    // bolso, por exemplo — mostra-se logo onde a voz vai. Antes abria no
+    // princípio do documento enquanto a leitura ia na folha 140.
+    LaunchedEffect(Unit) {
+        if (sessao.total > 0) runCatching { listaEstado.scrollToItem(sessao.indice) }
+    }
+
     // O texto segue a voz — só quando o parágrafo lido sai do ecrã, e só se
     // o leitor não andou agora mesmo a percorrer o documento.
     LaunchedEffect(sessao.indice, sessao.aLer) {
@@ -404,6 +416,20 @@ fun EcraLeitura(
         val visiveis = listaEstado.layoutInfo.visibleItemsInfo
         val aVista = visiveis.any { it.index == sessao.indice }
         if (!aVista) listaEstado.animateScrollToItem(sessao.indice)
+    }
+
+    val indiceActual by rememberUpdatedState(sessao.indice)
+    val foraDeVista by remember {
+        derivedStateOf {
+            val vistos = listaEstado.layoutInfo.visibleItemsInfo
+            vistos.isNotEmpty() && vistos.none { it.index == indiceActual }
+        }
+    }
+    val paraBaixo by remember {
+        derivedStateOf {
+            val vistos = listaEstado.layoutInfo.visibleItemsInfo
+            vistos.isNotEmpty() && indiceActual > vistos.last().index
+        }
     }
 
     Column(
@@ -431,18 +457,59 @@ fun EcraLeitura(
             Aviso(stringResource(R.string.aviso_voz_nenhuma))
         }
 
-        LazyColumn(
-            state = listaEstado,
-            modifier = Modifier.fillMaxSize().weight(1f),
-            contentPadding = PaddingValues(start = 22.dp, end = 22.dp, top = 8.dp, bottom = 24.dp)
-        ) {
-            itemsIndexed(documento.paragrafos, key = { _, p -> p.id }) { indice, p ->
-                Column {
-                    if (p.indiceNaPagina == 0) MarcaDeFolha(p.pagina)
-                    BlocoDeTexto(
-                        paragrafo = p,
-                        actual = indice == sessao.indice,
-                        aoTocar = { aoIrPara(indice) }
+        Box(Modifier.fillMaxWidth().weight(1f)) {
+            LazyColumn(
+                state = listaEstado,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(start = 22.dp, end = 22.dp, top = 8.dp, bottom = 24.dp)
+            ) {
+                itemsIndexed(documento.paragrafos, key = { _, p -> p.id }) { indice, p ->
+                    Column {
+                        if (p.indiceNaPagina == 0) MarcaDeFolha(p.pagina)
+                        BlocoDeTexto(
+                            paragrafo = p,
+                            actual = indice == sessao.indice,
+                            aoTocar = { aoIrPara(indice) },
+                            // Um toque só conta com a lista parada: a seguir a
+                            // um deslize, o dedo ainda vem a escorregar.
+                            podeTocar = {
+                                !listaEstado.isScrollInProgress &&
+                                    System.currentTimeMillis() - instanteDoDedo > 350
+                            }
+                        )
+                    }
+                }
+            }
+
+            // Quem foi ver outra folha não perde o sítio: este botão leva de
+            // volta ao parágrafo que está a ser lido, sem mexer na leitura.
+            if (foraDeVista) {
+                val escopo = rememberCoroutineScope()
+                Row(
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 14.dp)
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(Fundo)
+                        .border(1.dp, Acento, RoundedCornerShape(22.dp))
+                        .clickable {
+                            escopo.launch {
+                                runCatching { listaEstado.animateScrollToItem(indiceActual) }
+                            }
+                        }
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_para_baixo),
+                        contentDescription = null,
+                        tint = Acento,
+                        modifier = Modifier.size(18.dp).rotate(if (paraBaixo) 0f else 180f)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        stringResource(R.string.ir_para_a_leitura),
+                        style = EstiloInterface.copy(color = Acento, fontSize = 14.sp)
                     )
                 }
             }
@@ -510,7 +577,12 @@ private fun MarcaDeFolha(pagina: Int) {
 private const val ESPERA_DEPOIS_DO_DEDO = 15_000L
 
 @Composable
-private fun BlocoDeTexto(paragrafo: Paragraph, actual: Boolean, aoTocar: () -> Unit) {
+private fun BlocoDeTexto(
+    paragrafo: Paragraph,
+    actual: Boolean,
+    aoTocar: () -> Unit,
+    podeTocar: () -> Boolean = { true }
+) {
     // A marca do parágrafo em leitura é uma barra fina à esquerda —
     // sem caixa nem fundo, que numa página inteira de texto cansa a vista.
     Row(
@@ -521,10 +593,14 @@ private fun BlocoDeTexto(paragrafo: Paragraph, actual: Boolean, aoTocar: () -> U
             // que o limiar de deslize: bastava começar a percorrer o texto
             // devagar para a leitura saltar de sítio. Aqui só conta o dedo
             // que pousa e levanta praticamente sem andar.
-            .pointerInput(aoTocar) {
-                val limite = viewConfiguration.touchSlop / 3f
+            .pointerInput(aoTocar, podeTocar) {
+                // Um quarto do limiar de deslize: o dedo que escorrega já não
+                // conta, e a lista tem de estar mesmo parada quando ele pousa
+                // e quando levanta.
+                val limite = viewConfiguration.touchSlop / 4f
                 awaitEachGesture {
                     awaitFirstDown(requireUnconsumed = false)
+                    val valiaAoPousar = podeTocar()
                     var andou = 0f
                     var roubado = false
                     while (true) {
@@ -535,7 +611,7 @@ private fun BlocoDeTexto(paragrafo: Paragraph, actual: Boolean, aoTocar: () -> U
                         }
                         if (evento.changes.none { it.pressed }) break
                     }
-                    if (!roubado && andou <= limite) aoTocar()
+                    if (!roubado && andou <= limite && valiaAoPousar && podeTocar()) aoTocar()
                 }
             }
     ) {

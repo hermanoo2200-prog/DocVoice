@@ -136,7 +136,21 @@ class LeituraService : Service() {
         super.onTaskRemoved(rootIntent)
     }
 
+    /**
+     * O serviço morreu — varrido com a tarefa, parado pelo botão de fechar ou
+     * deitado abaixo pelo sistema. Em qualquer dos casos a voz tem de calar.
+     *
+     * Isto é o que faltava: quem fala não é o serviço, é a sessão de leitura,
+     * que vive no processo todo. Sem esta rede, o serviço ia-se embora e o
+     * telemóvel continuava a ler no bolso, sem notificação nem forma de o
+     * mandar parar.
+     */
     override fun onDestroy() {
+        if (SessaoDeLeitura.estado.value.aLer) {
+            Log.i("DocVoice", "serviço a morrer com a leitura a andar: a calar")
+            SessaoDeLeitura.pausar()
+        }
+        SessaoDeLeitura.libertar()
         largarCpu()
         runCatching { unregisterReceiver(receptorDeRuido) }
         escopo.cancel()
