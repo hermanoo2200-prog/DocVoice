@@ -13,11 +13,14 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import pt.docvoice.R
 import pt.docvoice.dados.ArquivoDeRecentes
+import pt.docvoice.dados.ArquivoDeTextos
+import pt.docvoice.dados.FormatoDeTexto
 import pt.docvoice.dados.Preferencias
 import pt.docvoice.dados.RegistoDocumento
 import pt.docvoice.leitura.CacheDeDocumentos
@@ -39,6 +42,7 @@ data class Posicao(val pagina: Int, val indiceNaPagina: Int)
 class LeitorViewModel(app: Application) : AndroidViewModel(app) {
 
     private val arquivo = ArquivoDeRecentes(app)
+    private val textos = ArquivoDeTextos(app)
     private val preferencias = Preferencias(app)
 
     private val _estado = MutableStateFlow<EstadoLeitura>(EstadoLeitura.Vazio)
@@ -52,6 +56,24 @@ class LeitorViewModel(app: Application) : AndroidViewModel(app) {
     init {
         // A leitura já ia a meio e a aplicação voltou do bolso: reencontrar o ecrã certo.
         SessaoDeLeitura.estado.value.documento?.let { _estado.value = EstadoLeitura.Aberto(it) }
+
+        // Guarda-se texto só de documentos que estão na lista. O que caiu da
+        // lista não tem que continuar gravado no telemóvel.
+        viewModelScope.launch {
+            runCatching { textos.limparOsQueSaíramDaLista(arquivo.lista.first().map { it.chave }) }
+        }
+    }
+
+    /** Quanto ocupa o texto guardado, para se poder mostrar antes de apagar. */
+    suspend fun espacoGuardado(): Long = textos.tamanho()
+
+    /** O botão «apagar tudo o que está guardado». */
+    fun apagarTudoOGuardado(aoAcabar: () -> Unit = {}) {
+        viewModelScope.launch {
+            textos.apagarTudo()
+            CacheDeDocumentos.limpar()
+            aoAcabar()
+        }
     }
 
     fun abrir(uri: Uri, restaurar: Posicao? = null) {
@@ -85,6 +107,34 @@ class LeitorViewModel(app: Application) : AndroidViewModel(app) {
                 return@launch
             }
 
+            // Já foi extraído noutro dia e ficou guardado no telemóvel:
+            // não se abre o PDF outra vez.
+            val doDisco = runCatching {
+                textos.ler(RegistoDocumento.chaveDe(nome, tamanho))
+            }.getOrNull()
+            if (doDisco != null && doDisco.paragrafos.isNotEmpty()) {
+                SessaoDeLeitura.pausar()
+                runCatching { guardarPermissao(ctx, uri) }
+                val documento = Documento(
+                    nome = nome,
+                    uri = uri,
+                    tamanho = tamanho,
+                    totalPaginas = doDisco.totalPaginas,
+                    paginasComTexto = doDisco.paginasComTexto,
+                    paragrafos = doDisco.paragrafos
+                )
+                val onde = restaurar
+                    ?: arquivo.procurar(RegistoDocumento.chaveDe(nome, tamanho))
+                        ?.let { Posicao(it.pagina, it.indiceNaPagina) }
+                CacheDeDocumentos.guardar(documento)
+                SessaoDeLeitura.carregar(
+                    documento,
+                    onde?.let { documento.indiceDe(it.pagina, it.indiceNaPagina) } ?: 0
+                )
+                _estado.value = EstadoLeitura.Aberto(documento)
+                return@launch
+            }
+
             SessaoDeLeitura.pausar()
             _estado.value = EstadoLeitura.AExtrair(nome, 0, 0)
             try {
@@ -111,6 +161,16 @@ class LeitorViewModel(app: Application) : AndroidViewModel(app) {
                 CacheDeDocumentos.guardar(documento)
                 SessaoDeLeitura.carregar(documento, indice)
                 _estado.value = EstadoLeitura.Aberto(documento)
+                runCatching {
+                    textos.guardar(
+                        RegistoDocumento.chaveDe(nome, tamanho),
+                        FormatoDeTexto.TextoGuardado(
+                            totalPaginas = documento.totalPaginas,
+                            paginasComTexto = documento.paginasComTexto,
+                            paragrafos = documento.paragrafos
+                        )
+                    )
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -126,7 +186,11 @@ class LeitorViewModel(app: Application) : AndroidViewModel(app) {
 
     fun esquecer(registo: RegistoDocumento) {
         CacheDeDocumentos.esquecer(registo.chave)
-        viewModelScope.launch { arquivo.esquecer(registo.chave) }
+        viewModelScope.launch {
+            arquivo.esquecer(registo.chave)
+            // Tirar da lista apaga o texto no mesmo gesto: não fica nada para trás.
+            textos.apagar(registo.chave)
+        }
     }
 
     fun mudarVelocidade(valor: Float) {

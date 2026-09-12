@@ -10,6 +10,11 @@ autorização para aceder à rede**, por isso nenhum documento sai do telemóvel
 Isto está no próprio ficheiro de configuração da aplicação e pode ser
 verificado por qualquer pessoa.
 
+O texto dos documentos que abriu fica guardado **neste telemóvel** para não
+voltar a abrir o PDF de cada vez. Não sai daqui, não entra em cópias de
+segurança, e apaga-se quando quiser — tirando o documento da lista, ou de uma
+vez só em **Definições → Apagar tudo o que está guardado**.
+
 Livre e gratuita, e assim continuará — ver [Licença](#licença).
 
 ### ⬇ Descarregar

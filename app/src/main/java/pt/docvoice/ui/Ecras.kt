@@ -142,7 +142,8 @@ fun EcraRecentes(
     recentes: List<RegistoDocumento>,
     aoAbrir: () -> Unit,
     aoAbrirRecente: (RegistoDocumento) -> Unit,
-    aoEsquecer: (RegistoDocumento) -> Unit
+    aoEsquecer: (RegistoDocumento) -> Unit,
+    aoAbrirDefinicoes: () -> Unit
 ) {
     Column(
         Modifier
@@ -163,6 +164,14 @@ fun EcraRecentes(
             )
             TextButton(onClick = aoAbrir) {
                 Text(stringResource(R.string.abrir_pdf), style = EstiloInterface.copy(color = Acento))
+            }
+            IconButton(onClick = aoAbrirDefinicoes) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_definicoes),
+                    contentDescription = stringResource(R.string.definicoes),
+                    tint = Apagado,
+                    modifier = Modifier.size(20.dp)
+                )
             }
         }
 
@@ -278,6 +287,72 @@ private fun AnelDeProgresso(percentagem: Int) {
             "$percentagem",
             style = EstiloEtiqueta.copy(color = Texto, fontSize = 12.sp)
         )
+    }
+}
+
+/**
+ * Definições. Por agora tem uma coisa só, e é a que importa: onde está o texto
+ * dos documentos e como se apaga sem desinstalar nada.
+ */
+@Composable
+fun EcraDefinicoes(
+    espacoOcupado: String,
+    aoApagarTudo: () -> Unit,
+    apagado: Boolean,
+    aoVoltar: () -> Unit
+) {
+    Column(
+        Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(start = 20.dp, end = 12.dp, top = 18.dp, bottom = 18.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                stringResource(R.string.definicoes),
+                style = EstiloParagrafo.copy(fontSize = 22.sp),
+                modifier = Modifier.weight(1f)
+            )
+            TextButton(onClick = aoVoltar) {
+                Text(stringResource(R.string.voltar), style = EstiloInterface.copy(color = Acento))
+            }
+        }
+
+        Column(Modifier.padding(horizontal = 20.dp)) {
+            Text(
+                stringResource(R.string.texto_guardado_titulo),
+                style = EstiloInterface.copy(color = Texto, fontSize = 16.sp)
+            )
+            Spacer(Modifier.height(10.dp))
+            Text(
+                stringResource(R.string.texto_guardado_explicacao),
+                style = EstiloEtiqueta.copy(lineHeight = 22.sp)
+            )
+            Spacer(Modifier.height(16.dp))
+            Text(
+                stringResource(R.string.espaco_ocupado, espacoOcupado),
+                style = EstiloEtiqueta.copy(color = Texto)
+            )
+            Spacer(Modifier.height(20.dp))
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .border(1.dp, Acento, RoundedCornerShape(10.dp))
+                    .clickable(onClick = aoApagarTudo)
+                    .padding(vertical = 15.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    stringResource(R.string.apagar_tudo_guardado),
+                    style = EstiloInterface.copy(color = Acento, fontSize = 15.sp)
+                )
+            }
+            if (apagado) {
+                Spacer(Modifier.height(14.dp))
+                Text(stringResource(R.string.apagado_tudo), style = EstiloEtiqueta.copy(color = Acento))
+            }
+        }
     }
 }
 

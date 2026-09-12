@@ -50,4 +50,11 @@
     <string name="v_um_pouco_mais">Um pouco mais</string>
     <string name="v_rapido">Rápido</string>
     <string name="v_muito_rapido">Muito rápido</string>
+    <string name="definicoes">Definições</string>
+    <string name="texto_guardado_titulo">Texto guardado neste telemóvel</string>
+    <string name="texto_guardado_explicacao">Para não voltar a abrir o PDF de cada vez, o texto dos documentos da lista fica guardado aqui no telemóvel. Não sai daqui: a aplicação não tem acesso à Internet e não entra em cópias de segurança. Tirar um documento da lista apaga o texto dele.</string>
+    <string name="espaco_ocupado">Ocupa %1$s</string>
+    <string name="apagar_tudo_guardado">Apagar tudo o que está guardado</string>
+    <string name="apagado_tudo">Apagado. Os documentos voltam a abrir do PDF.</string>
+    <string name="voltar">Voltar</string>
 </resources>

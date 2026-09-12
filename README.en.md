@@ -9,6 +9,12 @@ No account. No ads. No Internet: the app **does not even hold permission to
 reach the network**, so no document ever leaves the phone. That is written into
 the app's own manifest and anyone can check it.
 
+The text of documents you have opened is kept **on this phone** so the PDF
+does not have to be opened again every time. It never leaves the device, never
+goes into a backup, and you can erase it whenever you like — by removing the
+document from the list, or all at once under **Settings → Erase everything
+stored**.
+
 Free as in freedom and free of charge, and it will stay that way — see
 [Licence](#licence).
 

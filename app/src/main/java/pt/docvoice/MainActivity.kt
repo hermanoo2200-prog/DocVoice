@@ -11,6 +11,10 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -20,6 +24,7 @@ import pt.docvoice.leitura.SessaoDeLeitura
 import pt.docvoice.ui.EcraExtracao
 import pt.docvoice.ui.EcraFalha
 import pt.docvoice.ui.EcraLeitura
+import pt.docvoice.ui.EcraDefinicoes
 import pt.docvoice.ui.EcraRecentes
 import pt.docvoice.ui.EcraVazio
 import pt.docvoice.ui.EstadoLeitura
@@ -63,6 +68,15 @@ private fun Aplicacao(vm: LeitorViewModel) {
         ActivityResultContracts.RequestPermission()
     ) { }
 
+    // As definições são um desvio curto, não um estado do documento: vive aqui.
+    var nasDefinicoes by remember { mutableStateOf(false) }
+    var espacoGuardado by remember { mutableStateOf("—") }
+    var apagouTudo by remember { mutableStateOf(false) }
+
+    LaunchedEffect(nasDefinicoes, apagouTudo) {
+        if (nasDefinicoes) espacoGuardado = emKilobytes(vm.espacoGuardado())
+    }
+
     val alternar: () -> Unit = {
         if (!sessao.aLer) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -74,6 +88,15 @@ private fun Aplicacao(vm: LeitorViewModel) {
     }
 
     Surface(color = Fundo, modifier = Modifier.fillMaxSize()) {
+        if (nasDefinicoes) {
+            EcraDefinicoes(
+                espacoOcupado = espacoGuardado,
+                aoApagarTudo = { vm.apagarTudoOGuardado { apagouTudo = !apagouTudo } },
+                apagado = apagouTudo,
+                aoVoltar = { nasDefinicoes = false; apagouTudo = false }
+            )
+            return@Surface
+        }
         when (val e = estado) {
             is EstadoLeitura.Vazio ->
                 if (recentes.isEmpty()) EcraVazio(abrir)
@@ -81,7 +104,8 @@ private fun Aplicacao(vm: LeitorViewModel) {
                     recentes = recentes,
                     aoAbrir = abrir,
                     aoAbrirRecente = { vm.abrirRecente(it) },
-                    aoEsquecer = { vm.esquecer(it) }
+                    aoEsquecer = { vm.esquecer(it) },
+                    aoAbrirDefinicoes = { nasDefinicoes = true }
                 )
             is EstadoLeitura.AExtrair -> EcraExtracao(e)
             is EstadoLeitura.Falhou -> EcraFalha(e.mensagem, abrir)
@@ -101,4 +125,11 @@ private fun Aplicacao(vm: LeitorViewModel) {
             )
         }
     }
+}
+
+/** «128 KB», «1,4 MB» — sem casas decimais a mais. */
+private fun emKilobytes(bytes: Long): String = when {
+    bytes <= 0L -> "0 KB"
+    bytes < 1024L * 1024L -> "${(bytes + 1023) / 1024} KB"
+    else -> String.format("%.1f MB", bytes / 1024.0 / 1024.0).replace('.', ',')
 }

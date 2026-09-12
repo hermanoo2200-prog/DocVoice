@@ -50,4 +50,11 @@
     <string name="v_um_pouco_mais">Чуть быстрее</string>
     <string name="v_rapido">Быстро</string>
     <string name="v_muito_rapido">Очень быстро</string>
+    <string name="definicoes">Настройки</string>
+    <string name="texto_guardado_titulo">Текст, сохранённый на телефоне</string>
+    <string name="texto_guardado_explicacao">Чтобы не разбирать PDF заново при каждом открытии, текст документов из списка хранится здесь, на телефоне. Наружу он не уходит: у приложения нет доступа к сети и оно не попадает в резервные копии. Убрать документ из списка — значит стереть и его текст.</string>
+    <string name="espaco_ocupado">Занимает %1$s</string>
+    <string name="apagar_tudo_guardado">Стереть всё сохранённое</string>
+    <string name="apagado_tudo">Стёрто. Документы снова будут разбираться из PDF.</string>
+    <string name="voltar">Назад</string>
 </resources>
