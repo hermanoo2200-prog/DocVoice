@@ -8,6 +8,7 @@ import android.app.Service
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.media.AudioManager
@@ -118,14 +119,20 @@ class LeituraService : Service() {
     }
 
     /**
-     * A aplicação foi retirada das recentes. Se não estava a ler, o serviço
-     * vai-se embora com ela — não fica nada de pé à espera de acordar.
+     * A aplicação foi varrida das recentes. Cai tudo: a voz, o serviço e a
+     * notificação.
+     *
+     * Antes só se desligava quando não estava a ler — e quem varria a
+     * aplicação a meio de um documento continuava a ouvi-la. Varrer das
+     * recentes não é minimizar: é fechar, e fechar quer dizer calar.
+     * Minimizar continua a deixar a leitura seguir, que é o que se pediu
+     * desde o princípio.
      */
     override fun onTaskRemoved(rootIntent: Intent?) {
-        if (!SessaoDeLeitura.estado.value.aLer) {
-            SessaoDeLeitura.libertar()
-            pararTudo()
-        }
+        Log.i("DocVoice", "tarefa varrida das recentes: a calar tudo")
+        SessaoDeLeitura.pausar()
+        SessaoDeLeitura.libertar()
+        pararTudo()
         super.onTaskRemoved(rootIntent)
     }
 

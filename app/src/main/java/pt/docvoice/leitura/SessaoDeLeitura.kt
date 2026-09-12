@@ -289,42 +289,61 @@ object SessaoDeLeitura {
      * ele cai em pontuação e o troço seguinte entra em fila sem pausa.
      */
     private var trocos: List<String> = emptyList()
-    private var troco = 0
+
+    /** Qual troço está a sair pelo altifalante neste momento. */
+    private var trocoAFalar = 0
 
     private fun falarActual(modo: Int) {
         val paragrafo = _estado.value.paragrafoActual ?: return
         if (modo == TextToSpeech.QUEUE_FLUSH) geracao++
         trocos = TrocosDeFala.partir(paragrafo.texto)
-        troco = 0
-        falarTroco(modo)
+        trocoAFalar = 0
+        enfileirar(desde = 0, modo = modo)
     }
 
-    /** Recomeça o troço em curso — usado quando muda a voz ou a velocidade. */
+    /**
+     * Põe na fila do motor **todos** os troços de uma vez.
+     *
+     * Antes entregava-se um troço e esperava-se que acabasse para entregar o
+     * seguinte: o tempo que o motor leva a preparar a fala ouvia-se como
+     * silêncio no meio do parágrafo — meio segundo de cada vez, medido em
+     * emulador, e mais num telemóvel lento. Com a fila cheia, o motor prepara
+     * o troço seguinte enquanto diz o actual.
+     */
+    private fun enfileirar(desde: Int, modo: Int) {
+        val paragrafo = _estado.value.paragrafoActual ?: return
+        val inicio = desde
+        if (inicio > trocos.lastIndex) return
+        for (i in inicio..trocos.lastIndex) {
+            val id = "${paragrafo.id}#$geracao/$i"
+            tts?.speak(trocos[i], if (i == inicio) modo else TextToSpeech.QUEUE_ADD, null, id)
+        }
+        // É o fim do último troço que faz mudar de parágrafo.
+        idEmCurso = "${paragrafo.id}#$geracao/${trocos.lastIndex}"
+    }
+
+    /**
+     * Muda de voz ou de velocidade sem recomeçar o parágrafo do princípio:
+     * volta a enfileirar a partir do troço que está a ser dito.
+     */
     private fun refazerTroco() {
         geracao++
-        falarTroco(TextToSpeech.QUEUE_FLUSH)
-    }
-
-    private fun falarTroco(modo: Int) {
-        val paragrafo = _estado.value.paragrafoActual ?: return
-        val texto = trocos.getOrNull(troco) ?: return
-        val id = "${paragrafo.id}#$geracao/$troco"
-        idEmCurso = id
-        tts?.speak(texto, modo, null, id)
+        enfileirar(desde = trocoAFalar, modo = TextToSpeech.QUEUE_FLUSH)
     }
 
     private val ouvinte = object : UtteranceProgressListener() {
-        override fun onStart(utteranceId: String?) {}
+        /** Guarda qual troço começou agora, para o caso de ser preciso refazer. */
+        override fun onStart(utteranceId: String?) {
+            val indice = utteranceId?.substringAfterLast('/')?.toIntOrNull() ?: return
+            if (utteranceId.contains("#$geracao/")) trocoAFalar = indice
+        }
 
         override fun onDone(utteranceId: String?) {
             val estado = _estado.value
             if (!estado.aLer) return
-            if (utteranceId != idEmCurso) return // fala já abandonada: ignorar
-            if (troco + 1 < trocos.size) {       // o mesmo parágrafo ainda não acabou
-                troco++
-                falarTroco(TextToSpeech.QUEUE_ADD)
-                return
-            }
+            // Só o último troço do parágrafo manda seguir; os do meio já têm
+            // o seguinte na fila do motor e não precisam de nada.
+            if (utteranceId != idEmCurso) return
             if (estado.indice + 1 >= estado.total) {
                 largarFoco()
                 _estado.value = estado.copy(aLer = false) // fim do documento
