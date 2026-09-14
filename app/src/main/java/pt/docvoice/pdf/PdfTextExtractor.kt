@@ -28,13 +28,23 @@ class PdfTextExtractor(private val resolver: ContentResolver) {
                     val total = doc.numberOfPages
                     val paginas = ArrayList<PageText>(total)
                     val stripper = PDFTextStripper().apply { sortByPosition = true }
+                    var maisLenta = 0L
+                    var folhaLenta = 0
                     for (n in 1..total) {
                         coroutineContext.ensureActive()
+                        val antes = System.currentTimeMillis()
                         stripper.startPage = n
                         stripper.endPage = n
                         paginas += PageText(n, stripper.getText(doc))
+                        val demorou = System.currentTimeMillis() - antes
+                        if (demorou > maisLenta) { maisLenta = demorou; folhaLenta = n }
+                        // Só as folhas que se arrastam. Quantidade, nunca conteúdo.
+                        if (demorou > 500) Log.i("DocVoice", "folha $n: $demorou ms")
                         progresso(n, total)
                     }
+                    if (maisLenta > 0) Log.i(
+                        "DocVoice", "folha mais lenta: $folhaLenta com $maisLenta ms"
+                    )
                     // Quantas folhas e quanto tempo. Nunca o que lá está
                     // escrito: o registo do sistema é legível por outras
                     // aplicações, e o documento é de quem o escreveu.

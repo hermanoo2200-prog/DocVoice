@@ -31,6 +31,27 @@ object TrocosDeFala {
 
     private const val MINIMO_UTIL = 40
 
+    /**
+     * Filetes e pontinhos: linhas de índice, traços de separação, sublinhados.
+     *
+     * Numa folha isto vê-se e serve para guiar o olho; ao motor de voz não
+     * serve para nada. Conforme o motor, ou lê «ponto ponto ponto» durante
+     * meio minuto, ou fica calado o mesmo tempo. Foi isto que fazia a leitura
+     * parar na passagem de página num documento com índice.
+     *
+     * Três ou mais sinais seguidos, com ou sem espaços pelo meio. Um ponto
+     * sozinho não é apanhado: `15.000`, `art.`, `n.º` e `12-03-2026` ficam
+     * como estão.
+     */
+    private val FILETES = Regex("(?:[.·•\\-–—_*=~]\\s*){3,}")
+    private val ESPACOS_A_MAIS = Regex("\\s+")
+
+    /** Tira o que não é fala. Devolve vazio se não sobrar letra nem algarismo. */
+    fun limpar(texto: String): String {
+        val t = texto.replace(FILETES, " ").replace(ESPACOS_A_MAIS, " ").trim()
+        return if (t.none { it.isLetterOrDigit() }) "" else t
+    }
+
     /** Fim de frase. */
     private val FORTE = charArrayOf('.', '!', '?', '…')
 
@@ -42,8 +63,9 @@ object TrocosDeFala {
      * original, tirando os espaços das emendas.
      */
     fun partir(texto: String, limite: Int = LIMITE): List<String> {
-        val inteiro = texto.trim()
-        if (inteiro.length <= limite) return if (inteiro.isEmpty()) emptyList() else listOf(inteiro)
+        val inteiro = limpar(texto)
+        if (inteiro.isEmpty()) return emptyList()
+        if (inteiro.length <= limite) return listOf(inteiro)
 
         val saida = ArrayList<String>()
         var resto = inteiro
@@ -53,7 +75,8 @@ object TrocosDeFala {
             resto = resto.substring(corte).trim()
         }
         if (resto.isNotEmpty()) saida += resto
-        return saida
+        // Um troço sem uma letra nem um algarismo não tem nada para dizer.
+        return saida.filter { t -> t.any { it.isLetterOrDigit() } }
     }
 
     /**

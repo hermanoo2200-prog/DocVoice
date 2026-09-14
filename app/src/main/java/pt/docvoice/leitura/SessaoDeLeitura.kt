@@ -293,10 +293,34 @@ object SessaoDeLeitura {
     /** Qual troço está a sair pelo altifalante neste momento. */
     private var trocoAFalar = 0
 
+    /** Quantos parágrafos mudos se saltam de seguida antes de desistir. */
+    private val MAXIMO_DE_SALTOS = 50
+
     private fun falarActual(modo: Int) {
-        val paragrafo = _estado.value.paragrafoActual ?: return
+        var paragrafo = _estado.value.paragrafoActual ?: return
         if (modo == TextToSpeech.QUEUE_FLUSH) geracao++
         trocos = TrocosDeFala.partir(paragrafo.texto)
+
+        // Um parágrafo pode não ter nada para dizer: um filete, uma linha de
+        // pontinhos, um número de folha solto. Antes disto, um parágrafo assim
+        // não punha nada na fila do motor — e como é o fim da fala que manda
+        // seguir em frente, a leitura ficava à espera de um fim que nunca
+        // chegava. Agora salta-se por cima dele.
+        var saltados = 0
+        while (trocos.isEmpty() && saltados < MAXIMO_DE_SALTOS) {
+            val estado = _estado.value
+            if (estado.indice + 1 >= estado.total) {   // era o último
+                largarFoco()
+                _estado.value = estado.copy(aLer = false)
+                return
+            }
+            _estado.value = estado.copy(indice = estado.indice + 1)
+            paragrafo = _estado.value.paragrafoActual ?: return
+            trocos = TrocosDeFala.partir(paragrafo.texto)
+            saltados++
+        }
+        if (trocos.isEmpty()) { pausar(); return }
+
         trocoAFalar = 0
         enfileirar(desde = 0, modo = modo)
     }
