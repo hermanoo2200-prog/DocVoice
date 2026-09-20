@@ -1,7 +1,9 @@
 package pt.docvoice.dados
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import pt.docvoice.text.Paragraph
 
@@ -79,5 +81,57 @@ class FormatoDeTextoTest {
             1, 1, listOf(Paragraph(1, 0, "á".repeat(200_000)))
         )
         assertEquals(grande, FormatoDeTexto.ler(FormatoDeTexto.escrever(grande)))
+    }
+}
+
+// ── passo 6: OCR ────────────────────────────────────────────────────────────
+
+class FormatoDeTextoOcrTest {
+
+    private val paragrafos = listOf(
+        Paragraph(1, 0, "Primeira folha, com vírgulas, «aspas» e\nquebra de linha."),
+        Paragraph(2, 0, "Segunda folha.")
+    )
+
+    @Test
+    fun `idioma e folhas reconhecidas sobrevivem a ida e volta`() {
+        val original = FormatoDeTexto.TextoGuardado(
+            totalPaginas = 2,
+            paginasComTexto = 2,
+            paragrafos = paragrafos,
+            idiomaOcr = "rus",
+            paginasReconhecidas = setOf(2, 1)
+        )
+        val lido = FormatoDeTexto.ler(FormatoDeTexto.escrever(original))
+        assertEquals("rus", lido!!.idiomaOcr)
+        assertEquals(setOf(1, 2), lido.paginasReconhecidas)
+        assertEquals(paragrafos, lido.paragrafos)
+        assertEquals(2, lido.totalPaginas)
+    }
+
+    @Test
+    fun `documento sem ocr guarda idioma nenhum`() {
+        val original = FormatoDeTexto.TextoGuardado(2, 2, paragrafos)
+        val lido = FormatoDeTexto.ler(FormatoDeTexto.escrever(original))
+        assertNull(lido!!.idiomaOcr)
+        assertTrue(lido.paginasReconhecidas.isEmpty())
+    }
+
+    @Test
+    fun `ficheiro antigo do passo 5 continua a ler-se`() {
+        // Escrito à mão no formato DOCVOICE1, como está nos telemóveis que já têm a aplicação.
+        val texto = "Olá."
+        val antigo = "DOCVOICE1\n3\n3\n1\n1 0 ${texto.length}\n$texto\n"
+        val lido = FormatoDeTexto.ler(antigo)
+        assertNotNull(lido)
+        assertEquals(3, lido!!.totalPaginas)
+        assertNull(lido.idiomaOcr)
+        assertTrue(lido.paginasReconhecidas.isEmpty())
+        assertEquals(1, lido.paragrafos.size)
+    }
+
+    @Test
+    fun `cabecalho desconhecido continua a dar null`() {
+        assertNull(FormatoDeTexto.ler("DOCVOICE9\n1\n1\n-\n\n0\n"))
     }
 }

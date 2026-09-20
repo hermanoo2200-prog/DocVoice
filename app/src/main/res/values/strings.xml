@@ -58,4 +58,40 @@
     <string name="apagado_tudo">Apagado. Os documentos voltam a abrir do PDF.</string>
     <string name="voltar">Voltar</string>
     <string name="ir_para_a_leitura">Onde vai a leitura</string>
+
+    <!-- Passo 6: reconhecimento de texto em documentos digitalizados. -->
+    <string name="ocr_titulo">Este documento parece digitalizado</string>
+    <string name="ocr_explica">De %1$d folhas, só %2$d trazem texto. As outras são fotografias e a voz não tem o que ler.</string>
+    <string name="ocr_explica_inteiro">Nenhuma das %1$d folhas traz texto: é uma digitalização de ponta a ponta.</string>
+    <string name="ocr_perguntar_idioma">Em que idioma está escrito?</string>
+    <string name="ocr_idioma_por">Português</string>
+    <string name="ocr_idioma_rus">Russo</string>
+    <string name="ocr_so_as_que_faltam">Só as %1$d folhas sem texto</string>
+    <string name="ocr_todas">Todas as %1$d folhas</string>
+    <string name="ocr_comecar">Reconhecer</string>
+    <string name="ocr_agora_nao">Agora não</string>
+    <string name="ocr_a_preparar">A preparar o reconhecimento…</string>
+    <string name="ocr_a_processar">Folha %1$d de %2$d</string>
+    <string name="ocr_parar">Parar</string>
+    <string name="ocr_terminado">Pronto: %1$d folhas reconhecidas.</string>
+    <string name="ocr_interrompido">Parado. Ficaram guardadas %1$d folhas.</string>
+    <string name="ocr_nada_lido">Não se conseguiu ler texto nenhum destas folhas.</string>
+    <string name="ocr_sem_idioma">O ficheiro de idioma não está disponível nesta instalação.</string>
+    <string name="ocr_falhou">O reconhecimento falhou: %1$s</string>
+    <!-- Marcas: o que se apanha a ouvir. -->
+    <string name="marca_por">Marcar este parágrafo</string>
+    <string name="marca_tirar">Tirar a marca</string>
+    <string name="marcas_lista">As minhas marcas</string>
+    <string name="marcas_titulo">As minhas marcas</string>
+    <string name="marcas_conta">%1$d neste documento</string>
+    <string name="marcas_nenhuma">Ainda não marcou nada. O marcador está ao lado do botão de tocar: carregue nele enquanto ouve.</string>
+    <string name="marcas_copiar">Copiar a lista</string>
+    <string name="marcas_enviar">Enviar</string>
+    <string name="marcas_copiada">Lista copiada.</string>
+    <string name="marcas_folha">Folha %1$d</string>
+    <string name="marcas_nota_por">Escrever uma nota</string>
+    <string name="marcas_nota_guardar">Guardar</string>
+    <string name="marcas_apagar">Tirar</string>
+    <string name="ocr_pedir">Reconhecer %1$d folhas</string>
+    <string name="ocr_demora">Demora. Convém ter o telemóvel na ficha.</string>
 </resources>

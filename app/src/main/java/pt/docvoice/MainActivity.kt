@@ -24,6 +24,8 @@ import pt.docvoice.leitura.SessaoDeLeitura
 import pt.docvoice.ui.EcraExtracao
 import pt.docvoice.ui.EcraFalha
 import pt.docvoice.ui.EcraLeitura
+import pt.docvoice.ui.EcraMarcas
+import pt.docvoice.ui.PainelDeOcr
 import pt.docvoice.ui.EcraDefinicoes
 import pt.docvoice.ui.EcraRecentes
 import pt.docvoice.ui.EcraVazio
@@ -55,6 +57,10 @@ private fun Aplicacao(vm: LeitorViewModel) {
     val estado by vm.estado.collectAsStateWithLifecycle()
     val sessao by SessaoDeLeitura.estado.collectAsStateWithLifecycle()
     val recentes by vm.recentes.collectAsStateWithLifecycle()
+    val estadoOcr by vm.estadoOcr.collectAsStateWithLifecycle()
+    val planoDeOcr by vm.plano.collectAsStateWithLifecycle()
+    val ocrPedido by vm.ocrPedido.collectAsStateWithLifecycle()
+    val marcas by vm.marcas.collectAsStateWithLifecycle()
     val ctx = LocalContext.current
 
     val escolher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -70,6 +76,8 @@ private fun Aplicacao(vm: LeitorViewModel) {
 
     // As definições são um desvio curto, não um estado do documento: vive aqui.
     var nasDefinicoes by remember { mutableStateOf(false) }
+    // A lista de marcas é o mesmo tipo de desvio curto: entra-se, lê-se, sai-se.
+    var nasMarcas by remember { mutableStateOf(false) }
     var espacoGuardado by remember { mutableStateOf("—") }
     var apagouTudo by remember { mutableStateOf(false) }
 
@@ -97,6 +105,28 @@ private fun Aplicacao(vm: LeitorViewModel) {
             )
             return@Surface
         }
+        val aberto = (estado as? EstadoLeitura.Aberto)?.documento
+        if (nasMarcas && aberto != null) {
+            val porId = aberto.paragrafos.associateBy { it.id }
+            EcraMarcas(
+                nomeDoDocumento = aberto.nome,
+                marcas = marcas,
+                textoDoParagrafo = { porId[it.id]?.texto },
+                aoIrPara = { marca ->
+                    vm.irParaMarca(marca)
+                    nasMarcas = false
+                    if (!sessao.aLer) alternar()
+                },
+                aoTirar = { vm.alternarMarca(it.pagina, it.indiceNaPagina) },
+                aoEscreverNota = { marca, nota ->
+                    vm.escreverNota(marca.pagina, marca.indiceNaPagina, nota)
+                },
+                textoParaCopiar = { vm.listaDeMarcasParaCopiar() },
+                aoVoltar = { nasMarcas = false }
+            )
+            return@Surface
+        }
+
         when (val e = estado) {
             is EstadoLeitura.Vazio ->
                 if (recentes.isEmpty()) EcraVazio(abrir)
@@ -121,7 +151,25 @@ private fun Aplicacao(vm: LeitorViewModel) {
                 },
                 aoFecharAvisoVoz = { SessaoDeLeitura.avisoVozVisto() },
                 aoMudarVelocidade = { vm.mudarVelocidade(it) },
-                aoMudarVoz = { vm.mudarVoz(it) }
+                aoMudarVoz = { vm.mudarVoz(it) },
+                painelDeOcr = {
+                    PainelDeOcr(
+                        plano = planoDeOcr,
+                        estado = estadoOcr,
+                        pedido = ocrPedido,
+                        aoComecar = { idioma, alcance -> vm.iniciarOcr(idioma, alcance) },
+                        aoParar = { vm.pararOcr() },
+                        aoLimpar = { vm.limparEstadoOcr() }
+                    )
+                },
+                folhasPorReconhecer = planoDeOcr?.paginasSemTexto?.size ?: 0,
+                aoPedirOcr = { vm.pedirOcr() },
+                marcado = sessao.paragrafoActual?.let { p ->
+                    marcas.any { it.pagina == p.pagina && it.indiceNaPagina == p.indiceNaPagina }
+                } ?: false,
+                quantasMarcas = marcas.size,
+                aoMarcar = { vm.marcarOndeVai() },
+                aoAbrirMarcas = { nasMarcas = true }
             )
         }
     }

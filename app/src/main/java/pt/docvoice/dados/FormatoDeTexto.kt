@@ -13,22 +13,38 @@ import pt.docvoice.text.Paragraph
  * Puro Kotlin, sem Android: dá para testar na JVM.
  *
  * Formato:
- *     DOCVOICE1
+ *     DOCVOICE2
  *     <totalPaginas>
  *     <paginasComTexto>
+ *     <idioma do OCR, ou «-» se ninguém reconheceu nada>
+ *     <folhas reconhecidas, separadas por vírgula; linha vazia se nenhuma>
  *     <quantos parágrafos>
  *     <pagina> <indiceNaPagina> <comprimento em caracteres>
  *     <texto>
  *     ... (repete)
+ *
+ * As duas linhas do OCR entraram no passo 6. Servem para duas coisas: não
+ * voltar a reconhecer o que já foi reconhecido, e saber em que idioma foi —
+ * um documento lido como português pode ter de se repetir em russo, e sem o
+ * saber não há como oferecer isso a quem lê.
+ *
+ * Ficheiros DOCVOICE1, escritos antes do passo 6, continuam a ler-se: dão
+ * idioma nenhum e nenhuma folha reconhecida, que é a verdade sobre eles.
  */
 object FormatoDeTexto {
 
-    private const val CABECALHO = "DOCVOICE1"
+    private const val CABECALHO = "DOCVOICE2"
+    private const val CABECALHO_ANTIGO = "DOCVOICE1"
+    private const val SEM_IDIOMA = "-"
 
     data class TextoGuardado(
         val totalPaginas: Int,
         val paginasComTexto: Int,
-        val paragrafos: List<Paragraph>
+        val paragrafos: List<Paragraph>,
+        /** Código do Tesseract — «por», «rus» — ou null se nunca houve OCR. */
+        val idiomaOcr: String? = null,
+        /** Folhas que saíram do reconhecimento, não do PDF. */
+        val paginasReconhecidas: Set<Int> = emptySet()
     )
 
     fun escrever(guardado: TextoGuardado): String {
@@ -36,6 +52,8 @@ object FormatoDeTexto {
         sb.append(CABECALHO).append('\n')
         sb.append(guardado.totalPaginas).append('\n')
         sb.append(guardado.paginasComTexto).append('\n')
+        sb.append(guardado.idiomaOcr ?: SEM_IDIOMA).append('\n')
+        sb.append(guardado.paginasReconhecidas.sorted().joinToString(",")).append('\n')
         sb.append(guardado.paragrafos.size).append('\n')
         for (p in guardado.paragrafos) {
             sb.append(p.pagina).append(' ')
@@ -57,9 +75,21 @@ object FormatoDeTexto {
             return s
         }
 
-        if (linha() != CABECALHO) return null
+        val versao = linha()
+        if (versao != CABECALHO && versao != CABECALHO_ANTIGO) return null
         val totalPaginas = linha().toInt()
         val paginasComTexto = linha().toInt()
+
+        var idiomaOcr: String? = null
+        var reconhecidas: Set<Int> = emptySet()
+        if (versao == CABECALHO) {
+            idiomaOcr = linha().let { if (it == SEM_IDIOMA || it.isBlank()) null else it }
+            reconhecidas = linha()
+                .split(',')
+                .mapNotNull { it.trim().toIntOrNull() }
+                .toSet()
+        }
+
         val quantos = linha().toInt()
         if (quantos < 0 || totalPaginas < 0) return null
 
@@ -77,6 +107,6 @@ object FormatoDeTexto {
             i++
             paragrafos += Paragraph(pagina, indice, texto)
         }
-        TextoGuardado(totalPaginas, paginasComTexto, paragrafos)
+        TextoGuardado(totalPaginas, paginasComTexto, paragrafos, idiomaOcr, reconhecidas)
     }.getOrNull()
 }

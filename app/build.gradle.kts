@@ -12,8 +12,8 @@ android {
         applicationId = "pt.docvoice"
         minSdk = 26          // Android 8.0
         targetSdk = 35
-        versionCode = 11
-        versionName = "0.6.3"
+        versionCode = 13
+        versionName = "0.7.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -30,6 +30,29 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true }
+
+    splits {
+        // Um ficheiro por arquitectura, em vez de um com as quatro dentro.
+        // NÃO é o mesmo que cortar arquitecturas: continuam a sair todas,
+        // incluindo x86_64, que é a do emulador onde isto se prova. O que
+        // muda é que cada telemóvel leva só a sua — de 52 MB para cerca de
+        // 30 — e o universal continua a sair para quem não quiser escolher.
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
+            isUniversalApk = true
+        }
+    }
+
+    androidResources {
+        // Os ficheiros de idioma do Tesseract ficam por comprimir de propósito.
+        // Comprimidos, o AssetManager.openFd() recusa-se a abri-los — é assim
+        // que está feito — e ficávamos sem saber o tamanho para comparar com o
+        // que já está copiado. Por cima disso, ficar por comprimir poupa a
+        // descompressão em cada arranque, que num telemóvel antigo conta.
+        noCompress += "traineddata"
+    }
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
 }
 
@@ -51,5 +74,15 @@ dependencies {
     // Extracção de texto. O PdfRenderer do sistema (raster para o OCR) entra no passo 6.
     implementation("com.tom-roush:pdfbox-android:2.0.27.0")
 
+    // Passo 6, OCR. Motor dentro do telemóvel, ficheiros de idioma em assets:
+    // a aplicação não tem autorização de rede e não vai buscar nada a lado nenhum.
+    // Coordenadas lidas no README do próprio projecto (adaptech-cz/Tesseract4Android).
+    implementation("cz.adaptech.tesseract4android:tesseract4android:4.9.0")
+
     testImplementation("junit:junit:4.13.2")
+
+    // Passo 6: o OCR só se prova com o motor a trabalhar a sério, e o motor é
+    // nativo. Estes testes correm no emulador, não na JVM.
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
 }

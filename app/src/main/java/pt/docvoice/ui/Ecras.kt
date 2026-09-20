@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -384,7 +385,17 @@ fun EcraLeitura(
     aoIrPara: (Int) -> Unit,
     aoFecharAvisoVoz: () -> Unit,
     aoMudarVelocidade: (Float) -> Unit,
-    aoMudarVoz: (String) -> Unit
+    aoMudarVoz: (String) -> Unit,
+    /** O painel do reconhecimento (passo 6). Desenha-se a si próprio ou nada. */
+    painelDeOcr: @Composable () -> Unit = {},
+    /** Quantas folhas do documento ainda não têm texto. Zero esconde o botão. */
+    folhasPorReconhecer: Int = 0,
+    aoPedirOcr: () -> Unit = {},
+    /** O parágrafo que a voz lê agora está marcado? */
+    marcado: Boolean = false,
+    quantasMarcas: Int = 0,
+    aoMarcar: () -> Unit = {},
+    aoAbrirMarcas: () -> Unit = {}
 ) {
     val listaEstado = rememberLazyListState()
 
@@ -438,18 +449,13 @@ fun EcraLeitura(
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
-        Cabecalho(documento, aoVoltarALista)
+        Cabecalho(documento, aoVoltarALista, folhasPorReconhecer, aoPedirOcr)
 
-        when {
-            documento.paragrafos.isEmpty() -> Aviso(stringResource(R.string.sem_texto))
-            documento.provavelDigitalizacao -> Aviso(
-                stringResource(
-                    R.string.aviso_digitalizado,
-                    documento.paginasComTexto,
-                    documento.totalPaginas
-                )
-            )
-        }
+        if (documento.paragrafos.isEmpty()) Aviso(stringResource(R.string.sem_texto))
+
+        // Substitui o aviso «isto parece digitalizado» que aqui estava: diz o
+        // mesmo e, além disso, oferece fazer alguma coisa quanto a isso.
+        painelDeOcr()
 
         if (sessao.mostrarAvisoVoz) {
             Aviso(stringResource(R.string.aviso_voz_brasil), aoFechar = aoFecharAvisoVoz)
@@ -458,6 +464,9 @@ fun EcraLeitura(
         }
 
         Box(Modifier.fillMaxWidth().weight(1f)) {
+          // Seleccionar e copiar, como num leitor normal. O toque curto
+          // continua a mandar a voz para ali; o dedo pousado abre a selecção.
+          SelectionContainer {
             LazyColumn(
                 state = listaEstado,
                 modifier = Modifier.fillMaxSize(),
@@ -513,14 +522,24 @@ fun EcraLeitura(
                     )
                 }
             }
+          }
         }
 
-        BarraDeBaixo(sessao, aoAlternar, aoSaltar, aoMudarVelocidade, aoMudarVoz)
+        BarraDeBaixo(
+            sessao, aoAlternar, aoSaltar, aoMudarVelocidade, aoMudarVoz,
+            marcado = marcado, quantasMarcas = quantasMarcas,
+            aoMarcar = aoMarcar, aoAbrirMarcas = aoAbrirMarcas
+        )
     }
 }
 
 @Composable
-private fun Cabecalho(documento: Documento, aoVoltarALista: () -> Unit) {
+private fun Cabecalho(
+    documento: Documento,
+    aoVoltarALista: () -> Unit,
+    folhasPorReconhecer: Int = 0,
+    aoPedirOcr: () -> Unit = {}
+) {
     Column(Modifier.fillMaxWidth().padding(start = 22.dp, end = 12.dp, top = 18.dp, bottom = 10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -535,10 +554,29 @@ private fun Cabecalho(documento: Documento, aoVoltarALista: () -> Unit) {
                 Text(stringResource(R.string.voltar_a_lista), style = EstiloInterface.copy(color = Acento))
             }
         }
-        Text(
-            stringResource(R.string.paragrafos_conta, documento.paragrafos.size, documento.totalPaginas),
-            style = EstiloEtiqueta
-        )
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                stringResource(
+                    R.string.paragrafos_conta,
+                    documento.paragrafos.size,
+                    documento.totalPaginas
+                ),
+                style = EstiloEtiqueta,
+                modifier = Modifier.weight(1f)
+            )
+            // O caso das duas folhas fotografadas num contrato de quarenta:
+            // fica muito acima do limiar, nunca se propõe sozinho, e sem isto
+            // não havia por onde lhes pegar.
+            if (folhasPorReconhecer > 0) {
+                Text(
+                    stringResource(R.string.ocr_pedir, folhasPorReconhecer),
+                    style = EstiloEtiqueta.copy(color = Acento),
+                    modifier = Modifier
+                        .clickable(onClick = aoPedirOcr)
+                        .padding(start = 10.dp, top = 2.dp, bottom = 2.dp)
+                )
+            }
+        }
         Spacer(Modifier.height(10.dp))
         Box(Modifier.fillMaxWidth().height(1.dp).background(Linha))
     }
@@ -576,6 +614,12 @@ private fun MarcaDeFolha(pagina: Int) {
 /** Quanto tempo o texto deixa de seguir a voz depois de alguém lhe tocar. */
 private const val ESPERA_DEPOIS_DO_DEDO = 15_000L
 
+/**
+ * A partir daqui o dedo já não está a tocar — está pousado, e isso é para
+ * seleccionar. O mesmo valor que o sistema usa para o toque longo.
+ */
+private const val DEDO_POUSADO = 500L
+
 @Composable
 private fun BlocoDeTexto(
     paragrafo: Paragraph,
@@ -601,6 +645,9 @@ private fun BlocoDeTexto(
                 awaitEachGesture {
                     awaitFirstDown(requireUnconsumed = false)
                     val valiaAoPousar = podeTocar()
+                    // Dedo pousado é selecção, não é toque. Sem isto, escolher
+                    // texto para copiar mandava a voz para esse parágrafo.
+                    val pousouEm = System.currentTimeMillis()
                     var andou = 0f
                     var roubado = false
                     while (true) {
@@ -611,7 +658,10 @@ private fun BlocoDeTexto(
                         }
                         if (evento.changes.none { it.pressed }) break
                     }
-                    if (!roubado && andou <= limite && valiaAoPousar && podeTocar()) aoTocar()
+                    val demorou = System.currentTimeMillis() - pousouEm
+                    if (!roubado && andou <= limite && demorou < DEDO_POUSADO &&
+                        valiaAoPousar && podeTocar()
+                    ) aoTocar()
                 }
             }
     ) {
@@ -637,7 +687,11 @@ private fun BarraDeBaixo(
     aoAlternar: () -> Unit,
     aoSaltar: (Int) -> Unit,
     aoMudarVelocidade: (Float) -> Unit,
-    aoMudarVoz: (String) -> Unit
+    aoMudarVoz: (String) -> Unit,
+    marcado: Boolean = false,
+    quantasMarcas: Int = 0,
+    aoMarcar: () -> Unit = {},
+    aoAbrirMarcas: () -> Unit = {}
 ) {
     var painelAberto by remember { mutableStateOf(false) }
     val fraccao = if (sessao.total > 0) (sessao.indice + 1f) / sessao.total else 0f
@@ -766,6 +820,31 @@ private fun BarraDeBaixo(
                     tint = Texto,
                     modifier = Modifier.size(26.dp)
                 )
+            }
+            // Marcar: um toque, a ouvir, sem parar nada. Fica ao lado do
+            // play porque é o botão que o polegar encontra sem olhar.
+            IconButton(onClick = aoMarcar) {
+                Icon(
+                    painter = painterResource(
+                        if (marcado) R.drawable.ic_marca_cheia else R.drawable.ic_marca
+                    ),
+                    contentDescription = stringResource(
+                        if (marcado) R.string.marca_tirar else R.string.marca_por
+                    ),
+                    tint = if (marcado) Acento else Texto,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            if (quantasMarcas > 0) {
+                IconButton(onClick = aoAbrirMarcas) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_lista),
+                        contentDescription = stringResource(R.string.marcas_lista),
+                        tint = Texto,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+                Text(quantasMarcas.toString(), style = EstiloEtiqueta.copy(color = Acento))
             }
             Spacer(Modifier.weight(1f))
             Text(

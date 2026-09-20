@@ -4,6 +4,7 @@ import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
+import android.util.Log
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.speech.tts.Voice
@@ -236,16 +237,37 @@ object SessaoDeLeitura {
 
     fun alternar() = if (_estado.value.aLer) pausar() else tocar()
 
+    /**
+     * Continuar a ler.
+     *
+     * Se a paragem foi no meio deste mesmo parágrafo, retoma-se do troço que
+     * estava a ser dito — não do princípio. Num parágrafo de uma sentença, que
+     * facilmente leva um minuto, recomeçar do princípio de cada vez que algo
+     * interrompe é ouvir tudo outra vez. Perde-se, quando muito, a frase que
+     * ficou a meio, porque é o troço inteiro que volta à fila.
+     */
     fun tocar() {
         val estado = _estado.value
         if (estado.documento == null || estado.total == 0) return
         if (!prontoParaFalar) { falarAssimQuePronto = true; preparar(contexto ?: return); return }
         if (!pedirFoco()) return
         _estado.value = estado.copy(aLer = true)
-        falarActual(TextToSpeech.QUEUE_FLUSH)
+
+        val mesmoParagrafo = estado.paragrafoActual?.id == paragrafoParado
+        if (mesmoParagrafo && trocoAFalar > 0 && trocos.isNotEmpty()) {
+            geracao++
+            enfileirar(desde = trocoAFalar, modo = TextToSpeech.QUEUE_FLUSH)
+        } else {
+            falarActual(TextToSpeech.QUEUE_FLUSH)
+        }
     }
 
+    /** Em que parágrafo é que a leitura ficou. Null quando nunca parou. */
+    private var paragrafoParado: String? = null
+
     fun pausar() {
+        // Onde ficou, para [tocar] poder continuar em vez de recomeçar.
+        paragrafoParado = _estado.value.paragrafoActual?.id
         geracao++            // o que vier do motor a partir daqui já não conta
         idEmCurso = null
         tts?.stop()
@@ -259,6 +281,8 @@ object SessaoDeLeitura {
         val estado = _estado.value
         if (estado.total == 0) return
         val novo = indice.coerceIn(0, estado.total - 1)
+        // Saltar de propósito é recomeçar: esquece-se onde se tinha ficado.
+        if (novo != estado.indice) { paragrafoParado = null; trocoAFalar = 0 }
         _estado.value = estado.copy(indice = novo)
         if (estado.aLer) falarActual(TextToSpeech.QUEUE_FLUSH)
     }
@@ -338,6 +362,8 @@ object SessaoDeLeitura {
         val paragrafo = _estado.value.paragrafoActual ?: return
         val inicio = desde
         if (inicio > trocos.lastIndex) return
+        // Quantidade, nunca conteúdo: o registo do sistema lê-se de fora.
+        Log.i("DocVoice", "fala: troços $inicio..${trocos.lastIndex}")
         for (i in inicio..trocos.lastIndex) {
             val id = "${paragrafo.id}#$geracao/$i"
             tts?.speak(trocos[i], if (i == inicio) modo else TextToSpeech.QUEUE_ADD, null, id)
@@ -399,12 +425,25 @@ object SessaoDeLeitura {
      * Chamada, alarme, outro leitor: calar.
      * E ficar calado — quem volta a ler é a pessoa, não a aplicação.
      * Uma voz que arranca sozinha no bolso depois da chamada é intrusiva.
+     *
+     * MAS há três perdas de foco, e tratá-las por igual estava errado.
+     *
+     * `CAN_DUCK` quer dizer, em português claro: «vai tocar aqui um som curto,
+     * podes continuar mais baixo». É o que o sistema manda quando chega um
+     * aviso, quando o teclado faz clique, ou quando o toque longo de
+     * seleccionar dá o seu estalido. Parar a leitura por causa disso era
+     * transformar um estalido de um quinto de segundo em silêncio total — e
+     * quem estava a seleccionar texto a ouvir ficava sem voz de cada vez que
+     * pousava o dedo. Aqui não se pára: continua-se.
+     *
+     * As outras duas — a chamada e o outro leitor — calam mesmo, como antes.
      */
     private val ouvinteDeFoco = AudioManager.OnAudioFocusChangeListener { mudanca ->
         when (mudanca) {
             AudioManager.AUDIOFOCUS_LOSS,
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> pausar()
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> pausar()
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK ->
+                Log.i("DocVoice", "som curto por cima: a leitura continua")
         }
     }
 
