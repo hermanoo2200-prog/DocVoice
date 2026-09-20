@@ -50,7 +50,11 @@ jobs:
       - name: Dar-lhe um nome legível
         id: nome
         run: |
-          origem=app/build/outputs/apk/debug/app-debug.apk
+          # Com a divisão por arquitectura (splits) o assembleDebug deixou
+          # de produzir app-debug.apk: passa a haver um ficheiro por
+          # arquitectura mais o universal. É o universal que se publica,
+          # porque serve qualquer telemóvel e não obriga ninguém a escolher.
+          origem=app/build/outputs/apk/debug/app-universal-debug.apk
           case "$GITHUB_REF" in
             refs/tags/*)
               # Nome fixo: a ligação de descarga tem de ser sempre a mesma,
