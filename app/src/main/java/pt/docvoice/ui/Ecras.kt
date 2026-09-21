@@ -793,8 +793,42 @@ private fun BarraDeBaixo(
             gapSize = 0.dp,
             drawStopIndicator = {}
         )
+        // Dois andares, não um.
+        //
+        // Num telemóvel estreito cabiam sete coisas numa linha só enquanto
+        // eram cinco. Ao entrar o marcador e a lista, o globo e a velocidade
+        // foram empurrados para fora do ecrã e desapareceram — e a velocidade
+        // é usada todos os dias. Uma Row não quebra linha: o que não cabe
+        // some-se sem aviso. Agora o que se toca ao ouvir fica em baixo, ao
+        // alcance do polegar, e o que se ajusta de vez em quando fica em cima.
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+            Modifier.fillMaxWidth().padding(start = 16.dp, end = 6.dp, top = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                stringResource(R.string.posicao_notificacao, sessao.indice + 1, sessao.total),
+                style = EstiloEtiqueta,
+                modifier = Modifier.weight(1f)
+            )
+            IconButton(onClick = { painelAberto = !painelAberto }) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_globo),
+                    contentDescription = stringResource(R.string.lingua_da_voz),
+                    tint = if (painelAberto) Acento else Texto,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+            TextButton(onClick = { painelAberto = !painelAberto }) {
+                Text(
+                    stringResource(nomeDaVelocidade(sessao.velocidade)),
+                    style = EstiloEtiqueta.copy(color = if (painelAberto) Acento else Texto),
+                    maxLines = 1,
+                    softWrap = false
+                )
+            }
+        }
+        Row(
+            Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, top = 2.dp, bottom = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = { aoSaltar(-1) }) {
@@ -847,26 +881,6 @@ private fun BarraDeBaixo(
                 Text(quantasMarcas.toString(), style = EstiloEtiqueta.copy(color = Acento))
             }
             Spacer(Modifier.weight(1f))
-            Text(
-                stringResource(R.string.posicao_notificacao, sessao.indice + 1, sessao.total),
-                style = EstiloEtiqueta
-            )
-            IconButton(onClick = { painelAberto = !painelAberto }) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_globo),
-                    contentDescription = stringResource(R.string.lingua_da_voz),
-                    tint = if (painelAberto) Acento else Texto,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
-            TextButton(onClick = { painelAberto = !painelAberto }) {
-                Text(
-                    stringResource(nomeDaVelocidade(sessao.velocidade)),
-                    style = EstiloEtiqueta.copy(color = if (painelAberto) Acento else Texto),
-                    maxLines = 1,
-                    softWrap = false
-                )
-            }
         }
     }
 }
