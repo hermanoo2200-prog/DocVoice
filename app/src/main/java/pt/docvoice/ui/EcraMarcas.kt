@@ -25,16 +25,20 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import android.content.Intent
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import pt.docvoice.R
@@ -177,6 +181,15 @@ private fun ItemDeMarca(
 ) {
     var aEscrever by remember(marca.id) { mutableStateOf(false) }
     var rascunho by remember(marca.id) { mutableStateOf(marca.nota) }
+    val foco = remember(marca.id) { FocusRequester() }
+    val teclado = LocalSoftwareKeyboardController.current
+
+    // Abrir o campo tem de bastar. Antes era preciso um segundo toque dentro
+    // dele para o teclado aparecer — e quem carregava em «escrever uma nota»
+    // e começava a escrever ficava a ver o que escrevia ir para o vazio.
+    LaunchedEffect(aEscrever) {
+        if (aEscrever) { foco.requestFocus(); teclado?.show() }
+    }
 
     Column(Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
         Row(
@@ -210,21 +223,28 @@ private fun ItemDeMarca(
                 BasicTextField(
                     value = rascunho,
                     onValueChange = { rascunho = it },
-                    singleLine = true,
+                    // Não é só uma linha: aqui cola-se um bocado do texto que
+                    // se seleccionou lá atrás, e um pedaço de uma sentença não
+                    // cabe numa linha. Cresce até cinco e depois rola.
+                    singleLine = false,
+                    maxLines = 5,
                     textStyle = EstiloInterface.copy(color = Texto, fontSize = 15.sp),
                     cursorBrush = androidx.compose.ui.graphics.SolidColor(Acento),
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                         imeAction = ImeAction.Done
                     ),
                     keyboardActions = androidx.compose.foundation.text.KeyboardActions(
-                        onDone = { aoEscreverNota(rascunho); aEscrever = false }
+                        onDone = { aoEscreverNota(rascunho); aEscrever = false; teclado?.hide() }
                     ),
                     modifier = Modifier
                         .weight(1f)
+                        .focusRequester(foco)
                         .border(1.dp, Linha, RoundedCornerShape(6.dp))
                         .padding(horizontal = 10.dp, vertical = 9.dp)
                 )
-                TextButton(onClick = { aoEscreverNota(rascunho); aEscrever = false }) {
+                TextButton(onClick = {
+                    aoEscreverNota(rascunho); aEscrever = false; teclado?.hide()
+                }) {
                     Text(
                         stringResource(R.string.marcas_nota_guardar),
                         style = EstiloEtiqueta.copy(color = Acento)
